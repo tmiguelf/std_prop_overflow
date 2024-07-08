@@ -42,7 +42,7 @@
 		<h1>Unified integer overflow arithmetic</h1>
 		<table class="info">
 			<tr><td>Document Number:</td><td>P3161R1</td></tr>
-			<tr><td>Date:</td><td>2024/02/16</td></tr>
+			<tr><td>Date:</td><td>2024/07/06</td></tr>
 			<tr><td>Reply-to:</td><td>cpp@kaotic.software</td></tr>
 			<tr><td>Authors:</td><td>Tiago Freire</td></tr>
 			<tr><td>Audience:</td><td>SG6, LWG</td></tr>
@@ -57,7 +57,7 @@
 			<tr><th>#</th><th>Description</th></tr>
 			<tr><td>0</td><td>Initial draft</td></tr>
 			<tr><td>1</td><td>Corrected suggested implementation of would_cast_modify, corrected div_wide definition, and made minor editorial changes.</td></tr>
-			<tr><td>2</td><td></td></tr>
+			<tr><td>2</td><td>Removed would_cast_modify in favor of existing in_range, added some code examples</td></tr>
 		</table>
 		<h2>Table of Contents</h2>
 		<p>
@@ -71,23 +71,23 @@
 			&nbsp;&nbsp;<a href="#functions.div">3.5. div</a><br />
 			&nbsp;&nbsp;<a href="#functions.is_div_defined">3.6. is_div_defined</a><br />
 			&nbsp;&nbsp;<a href="#functions.is_div_wide_defined">3.7. is_div_wide_defined</a><br />
-			<a href="#sovf_exclude">4. Why is safe overflow excluded?</a><br />
-			&nbsp;&nbsp;<a href="#sovf_exclude.add_overflow">4.1. add_overflow/sub_overflow</a><br />
-			&nbsp;&nbsp;<a href="#sovf_exclude.div_overflow">4.2. div_overflow</a><br />
-			&nbsp;&nbsp;<a href="#sovf_exclude.mul_overflow">4.3. mul_overflow</a><br />
-			<a href="#bad_div">5. The problem with division</a><br />
-			<a href="#Design">6. Design choice analysis</a><br />
-			&nbsp;&nbsp;<a href="#Design.header">6.1. Library header</a><br />
-			&nbsp;&nbsp;<a href="#Design.pattern">6.2. Overloads, Function Templates, or Named Functions</a><br />
-			&nbsp;&nbsp;<a href="#Design.return">6.3. Return type</a><br />
-			&nbsp;&nbsp;<a href="#Design.class">6.4. Extra classifications</a><br />
-			<a href="#Name">7. Naming</a><br />
-			<a href="#feature">8. Feature test macro</a><br />
-			<a href="#wording">9. Wording</a><br />
-			<a href="#ack">10. Acknowledgements</a><br />
-			<a href="#reference">11. References</a><br />
+			<a href="#examples">4. Examples</a><br />
+			<a href="#sovf_exclude">5. Why is safe overflow excluded?</a><br />
+			&nbsp;&nbsp;<a href="#sovf_exclude.add_overflow">5.1. add_overflow/sub_overflow</a><br />
+			&nbsp;&nbsp;<a href="#sovf_exclude.div_overflow">5.2. div_overflow</a><br />
+			&nbsp;&nbsp;<a href="#sovf_exclude.mul_overflow">5.3. mul_overflow</a><br />
+			<a href="#bad_div">6. The problem with division</a><br />
+			<a href="#Design">7. Design choice analysis</a><br />
+			&nbsp;&nbsp;<a href="#Design.header">7.1. Library header</a><br />
+			&nbsp;&nbsp;<a href="#Design.pattern">7.2. Overloads, Function Templates, or Named Functions</a><br />
+			&nbsp;&nbsp;<a href="#Design.return">7.3. Return type</a><br />
+			&nbsp;&nbsp;<a href="#Design.class">7.4. Extra classifications</a><br />
+			<a href="#Name">8. Naming</a><br />
+			<a href="#feature">9. Feature test macro</a><br />
+			<a href="#wording">10. Wording</a><br />
+			<a href="#ack">11. Acknowledgements</a><br />
+			<a href="#reference">12. References</a><br />
 		</p>
-
 		<h2 class="header" id="Motivation">1. Motivation</h2>
 		<p>In many applications sometimes one has to deal with integer arithmetic with numbers
 			whose width far exceeds that for which the defined standard types can support, or ever will be able to support since
@@ -142,7 +142,7 @@
 
 
 		<h2 class="header" id="functions">3. List of functions</h2>
-		<p>The saturation family has been addressed in paper [<a href="ref.P0543R3">P0543</a>] and has already been adopted, explanation is thus skipped.</p>
+		<p>The saturation family has been addressed in paper [<a href="#ref.P0543R3">P0543</a>] and has already been adopted, explanation is thus skipped.</p>
 
 		<h3 class="header" id="functions.add_carry">3.1. add_carry</h3>
 		<h4>Suggested signature</h4>
@@ -421,15 +421,131 @@ template&lt;typename T&gt;
 	}
 }
 </pre>
+		<h2 class="header" id="examples">4. Examples</h2>
+		<p>
+			The following are examples of algorithms that could be written using the suggested additions in this paper. Presented for illustrative purposes.
+		</p>
+		<h3 class="header" id="examples.">4.1. Signed Big number addition</h3>
+<pre>
+struct SignedBigNum
+{
+	using uint_t = uint64_t;
+	using sint_t = int64_t;
 
+	std::vector&lt;uint_t&gt; low_bits;
+	sint_t high_bits;
+};
 
-		<h2 class="header" id="sovf_exclude">4. Why is safe overflow excluded?</h2>
-		The [<a href="ref.analysis">analysis paper</a>]
-		and [<a href="ref.P3018R0">P3018R0</a>] 
+SignedBigNum BigNum_same_size_Add(SignedBigNum const& v1, SignedBigNum const& v2)
+{
+	using uint_t = SignedBigNum::uint_t;
+	using sint_t = SignedBigNum::sint_t;
+
+	uintptr_t const size = v1.low_bits.size();
+	assert(size == v2.low_bits.size());
+
+	SignedBigNum temp_out;
+	temp_out.low_bits.resize(size);
+
+	bool overflow = false;
+
+	for(uintptr_t i = 0; i &lt; size; ++i)
+	{
+<b>		//unsigned add with carry
+		std::add_carry_result&lt;uint_t&gt; const temp_result = std::add_carry&lt;uint_t&gt;(v1.low_bits[i], v2.low_bits[i], overflow);</b>
+		temp_out.low_bits[i] = temp_result.low_result;
+		overflow = temp_result.overflow;
+	}
+
+<b>	//signed add with carry
+	std::add_carry_result&lt;sint_t&gt; const temp_result = std::add_carry&lt;sint_t&gt;(v1.high_bits, v2.high_bits, overflow);</b>
+	if(temp_result.overflow)
+	{
+		temp_out.low_bits.push_back(static_cast&lt;uint_t&gt;(temp_result.low_result));
+		temp_out.high_bits = static_cast&lt;sint_t&gt;(get_sign_bit(temp_result.low_result) ? const_0_pad : const_1_pad);
+	}
+	else
+	{
+		temp_out.high_bits = temp_result.low_result;
+		//remove unecessary bits (optional)
+	}
+
+	return temp_out;
+}
+</pre>
+		<h3 class="header" id="examples.">4.2. <a href="#ref.codextract">Extract</a> from algorithm calculating all base 10 digits of a floating-point number</h3>
+		<p></p>
+<pre>
+//uint64_t carry;
+for(uint8_t i = 1; i &lt; last_index; ++i)
+{
+	if(!p_1[i])
+	{
+		p_1[i] = carry;
+		return;
+	}
+
+	//could have been simplified with fused multiply add
+<b>	auto mul_res = std::mul_wide(p_1[i], p_2);
+	auto add_res = std::add_carry(0, mul_res.low_bits, carry);</b>
+	if(add_res.overflow)
+	{
+		++mul_res.high_bits;
+	}
+
+	if(mul_res.high_bits || add_res.low_bits &gt;= fp_utils_p::max_pow_10)
+	{
+<b>		auto div_result = std::div_wide(mul_res.high_bits, add_res.low_bits, fp_utils_p::max_pow_10);</b>
+		carry = div_result.quotient;
+		p_1[i] = div_result.remainder;
+	}
+	else
+	{
+		p_1[i] = add_res.low_bits;
+		carry = 0;
+	}
+}
+</pre>
+<h3 class="header" id="examples.">4.3. Unsigned Big number division by simple scalar</h3>
+<pre>
+struct UnsignedBigNum
+{
+	using uint_t = uint64_t;
+	std::vector&lt;uint_t&gt; bits;
+};
+
+UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
+{
+	using uint_t = UnsignedBigNum::uint_t;
+	if(v2 == 0)
+	{
+		return {};
+	}
+
+	uintptr_t const size = v1.bits.size();
+
+	UnsignedBigNum temp_out;
+
+	temp_out.bits.resize(size);
+
+	std::div_result&lt;uint_t&gt; temp_res {.quotient = 0, .remainder = 0};
+	for(uintptr_t i = size; i--;)
+	{
+<b>		temp_res = std::div_wide(temp_res.remainder, v1.bits[i], v2);</b>
+		temp_out.bits[i] = temp_res.quotient;
+	}
+
+	return temp_out;
+}
+</pre>
+
+		<h2 class="header" id="sovf_exclude">5. Why is safe overflow excluded?</h2>
+		<p>The [<a href="#ref.analysis">analysis paper</a>]
+		and [<a href="#ref.P3018R0">P3018R0</a>] 
 		suggests the addition of "add_overflow", "sub_overflow", "mul_overflow", and "div_overflow", and yet they are not part of this paper.<br/>
-		This is intentional, after better analysis of the problem, I have came to the conclusion that perhaps it is better not to. And here is why.
-		
-		<h3 class="header" id="sovf_exclude.add_overflow">4.1. add_overflow/sub_overflow</h3>
+		This is intentional, after better analysis of the problem, I have came to the conclusion that perhaps it is better not to. And here is why.</p>
+
+		<h3 class="header" id="sovf_exclude.add_overflow">5.1. add_overflow/sub_overflow</h3>
 		<p>
 			add_overflow and sub_overflow, are essentially the same as add_carry/sub_borrow except that the carry/borrow bit
 			are fixed to 0. And indeed specialized CPU instructions exists to perform this behavior which are different from those required by a generic add_carry/sub_borrow (when the carry/borrow bit aren't known at compile time).<br />
@@ -438,14 +554,14 @@ template&lt;typename T&gt;
 			add_overflow/sub_overflow would have been without these instructions actually being provided.
 		</p>
 
-		<h3 class="header" id="sovf_exclude.div_overflow">4.2. div_overflow</h3>
+		<h3 class="header" id="sovf_exclude.div_overflow">5.2. div_overflow</h3>
 		<p>
 			Unsigned integer division never overflows, and signed integer division only overflows in the degenerate case INT_MAX/-1 which is trivial to check.<br/>
 			One may also note that division by 0 is still undefined, and a user is expect to protect against this case before trying to divide.<br/>
 			In addition there's no CPU instruction that would give the right result in the degenerate case; a library implementer would always need to explicitly check for the degenerate case before performing the division.<br/>
 			Given these, a user would be better served by being provided with a <b>is_div_defined</b> to the check themselves and then decide what behavior their application should have.
 		</p>
-		<h3 class="header" id="sovf_exclude.mul_overflow">4.3. mul_overflow</h3>
+		<h3 class="header" id="sovf_exclude.mul_overflow">5.3. mul_overflow</h3>
 		<p>
 			Although CPU instruction support exists in the form of overflow flag on multiplication, and although the behavior makes sense, the use cases are questionable.<br/>
 			One could still implement a sub-optimal "mul_overflow" by using "mul_wide" if need be.
@@ -453,7 +569,7 @@ template&lt;typename T&gt;
 		</p>
 
 
-		<h2 class="header" id="bad_div">5. The problem with division</h2>
+		<h2 class="header" id="bad_div">6. The problem with division</h2>
 		<p>
 			All functions in this paper have well defined behavior regardless of the input with the exceptions of those related to division.
 			Undefined behavior occurs when either dividing by zero or when the resulting value would overflow.<br/>
@@ -488,12 +604,12 @@ template&lt;typename T&gt;
 		</p>
 
 
-		<h2 class="header" id="Design">6. Design choice analysis</h2>
-		<h3 class="header" id="Design.header">6.1. Library header</h3>
-		<p>I agree with the approach presented by [<a href="ref.P0543R3">P0543</a>] which adds the new functionality to the &lt;numeric&gt; library.</p>
+		<h2 class="header" id="Design">7. Design choice analysis</h2>
+		<h3 class="header" id="Design.header">7.1. Library header</h3>
+		<p>I agree with the approach presented by [<a href="#ref.P0543R3">P0543</a>] which adds the new functionality to the &lt;numeric&gt; library.</p>
 		<p>These are functions that performs numerical operations, a new library is not required.</p>
 
-		<h3 class="header" id="Design.pattern">6.2. Overloads, Function Templates, or Named Functions</h3>
+		<h3 class="header" id="Design.pattern">7.2. Overloads, Function Templates, or Named Functions</h3>
 		<p>The use of template arguments is preferable over the alternatives for the following reasons:</p>
 		<ul>
 			<li>In contexts where we are working with template types, it would be much easier to just use the name of the function and let the type system figure out which
@@ -510,7 +626,7 @@ template&lt;typename T&gt;
 			<li>If you require a specific instance of the function for a specific type to be explicitly declared this cannot be easily done with overloads,
 				but can still be easily done with templates as one can just explicitly declare the exact templated type and this happens in a much more natural language e.x. mul_wide&lt;uint32_t&gt; is much more explicit than ui32_mul_wide.</li>
 		</ul>
-		<h3 class="header" id="Design.return">6.3. Return type</h3>
+		<h3 class="header" id="Design.return">7.3. Return type</h3>
 		<p>There are several ways to return multiple output values. For the cases where there's only 1 output value, just return the value as is with no additional structure.
 			For the other cases these were the options considered:
 		</p>
@@ -555,11 +671,11 @@ std::tie(value, remainder) = div_wide(...);
 			And thus, named structures were selected for the sake of improved clarity.
 		</p>
 
-		<h3 class="header" id="Design.class">6.4. Extra classifications</h3>
+		<h3 class="header" id="Design.class">7.4. Extra classifications</h3>
 		<p>With the exception of div_wide, all functions have "well" defined behaviour, and they can all be made <b>constexpr</b> and <b>noexcept</b>.
 			There's a clear benefit to computing things at compile time if possible, and if one can optimize assuming that they don't throw exceptions, then why shouldn't they be?<br/>
 		</p>
-		<h2 class="header" id="Name">7. Naming</h2>
+		<h2 class="header" id="Name">8. Naming</h2>
 		<p>Names like <b>add</b>, <b>sub</b>, <b>mul</b>, <b>div</b>, have long standing unwritten conventions as to what they should mean, its usage is unambiguous, there is precedent for it,
 		and they are all exactly 3 characters long which makes them look really nice when aligning them together. So I propose to keep that.
 		The rest of the text in the function name are mostly plain English and are well know in regards to their meaning.<br/>
@@ -575,11 +691,11 @@ std::tie(value, remainder) = div_wide(...);
 			and the same type can be used for both without the need to proliferate unnecessary identical structures.
 		</p>
 
-		<h2 class="header" id="feature">8. Feature test macro</h2>
+		<h2 class="header" id="feature">9. Feature test macro</h2>
 		<p>I propose the usage of __cpp_lib_overflow_arithmetic as a test feature for all families and remove __cpp_lib_saturation_arithmetic.</p>
 
 
-		<h2 class="header" id="wording">9. Wording</h2>
+		<h2 class="header" id="wording">10. Wording</h2>
 		<p>
 			In subclause 27.9 [numeric.ops.overview], change &lt;numeric&gt; as indicated:<br />
 				<pre class="remove"><s>// 27.10.17, saturation arithmetic</s></pre><br />
@@ -742,9 +858,9 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 <pre class="add">#define __cpp_lib_overflow_arithmetic</pre>
 		</p>
 
-		<h2 class="header" id="ack">10. Acknowledgements</h2>
+		<h2 class="header" id="ack">11. Acknowledgements</h2>
 		<p>Thanks to Jan Schultke for the feedback on function return types and editorial review.</p>
-		<h2 class="header" id="reference">11. References</h2>
+		<h2 class="header" id="reference">12. References</h2>
 			<p>
 				<ol>
 					<li id="ref.P0543R3"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p0543r3.html" target="_blank">ISO/IEC JTC1 SC22 WG21 P0543R3</a>: Saturation arithmetic by Jens Maurer</li>
@@ -754,6 +870,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 					<li id="ref.arm"><a href="https://developer.arm.com/documentation/ddi0487/latest" target="_blank">Arm® Architecture Reference Manual</a></li>
 					<li id="ref.msvc"><a href="https://learn.microsoft.com/en-us/cpp/intrinsics/alphabetical-listing-of-intrinsic-functions" target="_blank">MSVC intrinsics</a></li>
 					<li id="ref.clang"><a href="https://clang.llvm.org/docs/LanguageExtensions.html#multiprecision-arithmetic-builtins" target="_blank">Clang builtins</a></li>
+					<li id="ref.codextract"><a href="https://github.com/tmiguelf/utilities/blob/8f486a19a41466b7324efd3e99a4557bf846f828/CoreLib/src/string/fp_charconv_round.cpp#L539-L561" target="_blank">Code extract</a> on floating point char conversion</li>
 				</ol>
 			</p>
 	</body>

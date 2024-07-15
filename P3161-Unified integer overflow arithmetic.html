@@ -94,7 +94,7 @@
 			the width of the representable numbers are application-specific and can grow arbitrarily large (within the finite capabilities of the underlying device).
 			In other applications even if extended precision is not required it might be important to know if the result of an operation is valid (i.e. that it did not overflow).</p>
 		<p>Algorithms to deal with these are quite trivial, and most CPUs offer a good range of support for the required instructions (with these exact usages in mind),
-			but there are no equivalent abstractions that are available in the standard C++. It's a rather cumbersome and error prone to implement similar functionality using only C++,
+			but there are no equivalent abstractions that are available in the standard C++. It's rather cumbersome and error prone to implement similar functionality using only C++,
 			resulting in extremely inefficient code for what could often be a couple or even a single line of assembly.</p>
 		<p>The paper [<a href="#ref.P0543R3">P0543</a>] has already been accepted and is on track for C++26,
 			however this is just a narrow type of overflow behavior which is insufficient to implement things like multi-word integers.</p>
@@ -306,7 +306,7 @@ constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T diviso
 			</ul>
 			Note:
 			<ul>
-				<li>If divisor is 0 or if output_quo overflows the behaviour is undefined. This can be pre-checked with <i>!is_div_wide_defined</i></li>
+				<li>If divisor is 0 or if output_quo overflows the behavior is undefined. This can be pre-checked with <i>!is_div_wide_defined</i></li>
 				<li>result_quo is the value such that abs(result_quo) has the lowest possible value that satisfies
 					abs(dividend - divisor * result_quo) &lt; abs(divisor)
 				</li>
@@ -543,7 +543,7 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 		<p>The [<a href="#ref.analysis">analysis paper</a>]
 		and [<a href="#ref.P3018R0">P3018R0</a>] 
 		suggests the addition of "add_overflow", "sub_overflow", "mul_overflow", and "div_overflow", and yet they are not part of this paper.<br/>
-		This is intentional, after better analysis of the problem, I have came to the conclusion that perhaps it is better not to. And here is why.</p>
+		This is intentional, after better analysis of the problem, I have come to the conclusion that perhaps it is better not to. And here is why.</p>
 
 		<h3 class="header" id="sovf_exclude.add_overflow">5.1. add_overflow/sub_overflow</h3>
 		<p>
@@ -592,7 +592,7 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			Another question that is raised regarding std::div_sat is either or not it should be removed?
 			Unsigned division never overflows (and thus would never cause std::div_sat to express its undefined behavior),
 			and signed division only overflows in the degenerate case (which is trivial to check), and since division by 0 is still expected to be checked by the user anyway would it not be easier for the user to also check for signed overflow (and implement the overflow behavior themselves)?
-			The function is valid, and still makes sense, but may not actually be usefull.
+			The function is valid, and still makes sense, but may not actually be useful.
 		</p>
 		<p>
 			We also have to address the problem of std::div, (which currently exists for C feature parity) but only supports int, long, long long, and std::intmax_t.
@@ -607,7 +607,7 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 		<h2 class="header" id="Design">7. Design choice analysis</h2>
 		<h3 class="header" id="Design.header">7.1. Library header</h3>
 		<p>I agree with the approach presented by [<a href="#ref.P0543R3">P0543</a>] which adds the new functionality to the &lt;numeric&gt; library.</p>
-		<p>These are functions that performs numerical operations, a new library is not required.</p>
+		<p>These are functions that perform numerical operations, a new library is not required.</p>
 
 		<h3 class="header" id="Design.pattern">7.2. Overloads, Function Templates, or Named Functions</h3>
 		<p>The use of template arguments is preferable over the alternatives for the following reasons:</p>
@@ -672,7 +672,7 @@ std::tie(value, remainder) = div_wide(...);
 		</p>
 
 		<h3 class="header" id="Design.class">7.4. Extra classifications</h3>
-		<p>With the exception of div_wide, all functions have "well" defined behaviour, and they can all be made <b>constexpr</b> and <b>noexcept</b>.
+		<p>With the exception of div_wide, all functions have "well" defined behavior, and they can all be made <b>constexpr</b> and <b>noexcept</b>.
 			There's a clear benefit to computing things at compile time if possible, and if one can optimize assuming that they don't throw exceptions, then why shouldn't they be?<br/>
 		</p>
 		<h2 class="header" id="Name">8. Naming</h2>

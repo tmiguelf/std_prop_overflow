@@ -1,0 +1,8 @@
+[submodule "reference/submodules/quickMSBuild"]
+	path = reference/submodules/quickMSBuild
+	url = ../quickMSBuild.git
+	ignore = dirty
+[submodule "reference/submodules/googletest"]
+	path = reference/submodules/googletest
+	url = ../googletest.git
+	ignore = dirty

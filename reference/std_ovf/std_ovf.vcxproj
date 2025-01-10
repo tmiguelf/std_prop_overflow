@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3c2d20f5-13fa-42a7-8f1c-17216b2a4165}</ProjectGuid>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="WSL_Debug|x64">
+      <Configuration>WSL_Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="WSL_Release|x64">
+      <Configuration>WSL_Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="quickMSBuild" Condition="'$(Configuration)'=='Debug'">
+    <CompilerFlavour>MSVC</CompilerFlavour>
+    <BuildMethod>native</BuildMethod>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="quickMSBuild" Condition="'$(Configuration)'=='Release'">
+    <CompilerFlavour>MSVC</CompilerFlavour>
+    <BuildMethod>native</BuildMethod>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="quickMSBuild" Condition="'$(Configuration)'=='WSL_Debug'">
+    <CompilerFlavour>g++</CompilerFlavour>
+    <BuildMethod>WSL</BuildMethod>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="quickMSBuild" Condition="'$(Configuration)'=='WSL_Release'">
+    <CompilerFlavour>g++</CompilerFlavour>
+    <BuildMethod>WSL</BuildMethod>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Utility</ConfigurationType>
+  </PropertyGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(SolutionDir)locations.props" />
+    <Import Project="$(quickMSBuildPath)default.cpp.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="include\numeric_ovf" />
+    <None Include="std_ovf.include.props" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\numeric_ovf.hpp" />
+  </ItemGroup>
+  <Import Project="$(quickMSBuildPath)default.cpp.targets" />
+</Project>

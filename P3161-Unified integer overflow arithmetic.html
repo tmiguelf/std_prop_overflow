@@ -4,7 +4,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<base href="" />
-		<title>R3161R1 - Unified integer overflow arithmetic</title>
+		<title>R3161R3 - Unified integer overflow arithmetic</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<style>
 			body{tab-size: 4;}
@@ -20,29 +20,13 @@
 			h4{margin-bottom: 0; margin-top: 8px;}
 
 			p { margin-top: 0;}
-
-			/*
-			ol.toc {
-				font-size: large;
-				padding-left: 0;
-				counter-reset: item;
-			}
-			ol.toc li {
-				padding-left: 16px;
-				display: block;
-			}
-			ol.toc li:before {
-				content: counters(item, ".") ". ";
-				counter-increment: item;
-			}*/
-
 		</style>
 	</head>
 	<body>
 		<h1>Unified integer overflow arithmetic</h1>
 		<table class="info">
-			<tr><td>Document Number:</td><td>P3161R1</td></tr>
-			<tr><td>Date:</td><td>2024/07/06</td></tr>
+			<tr><td>Document Number:</td><td>P3161R3</td></tr>
+			<tr><td>Date:</td><td>2024/11/20</td></tr>
 			<tr><td>Reply-to:</td><td>cpp@kaotic.software</td></tr>
 			<tr><td>Authors:</td><td>Tiago Freire</td></tr>
 			<tr><td>Audience:</td><td>SG6, LWG</td></tr>
@@ -58,6 +42,7 @@
 			<tr><td>0</td><td>Initial draft</td></tr>
 			<tr><td>1</td><td>Corrected suggested implementation of would_cast_modify, corrected div_wide definition, and made minor editorial changes.</td></tr>
 			<tr><td>2</td><td>Removed would_cast_modify in favor of existing in_range, added some code examples</td></tr>
+			<tr><td>3</td><td></td></tr>
 		</table>
 		<h2>Table of Contents</h2>
 		<p>
@@ -338,7 +323,7 @@ constexpr bool is_div_defined(T dividend, T divisor) noexcept;
 			<h4>Possible implementation:</h4>
 <pre>
 template&lt;typename T&gt;
-[[nodiscard]] inline bool is_div_defined([[maybe_unused]] T const dividend, T const divisor)
+[[nodiscard]] inline constexpr bool is_div_defined([[maybe_unused]] T const dividend, T const divisor) noexcept
 {
 	if constexpr(std::is_signed_v&lt;T&gt;)
 	{
@@ -364,7 +349,7 @@ constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) n
 		<h4>Possible implementation:</h4>
 <pre>
 template&lt;typename T&gt;
-[[nodiscard]] bool is_div_wide_defined(T const hi_dividend, [[maybe_unused]] T const low_dividend, T const divisor)
+[[nodiscard]] constexpr bool is_div_wide_defined(T const hi_dividend, [[maybe_unused]] T const low_dividend, T const divisor) noexcept
 {
 	if constexpr(std::is_signed_v&lt;T&gt;)
 	{
@@ -716,7 +701,7 @@ struct add_carry_result {       // freestanding
 };
 
 template&lt;class T&gt;
-using sub_borrow_result = add_carry_result;
+using sub_borrow_result = add_carry_result&lt;T&gt;;
 
 template&lt;class T&gt;
 struct mul_wide_result {       // freestanding
@@ -832,13 +817,13 @@ Preconditions: is_div_wide_defined(dividend_high, dividend_low, divisor) evaluat
 Remarks: A function call expression that violates the precondition in the Preconditions element is not a core constant expression ([expr.const]).
 
 27.10.17.3 Checking[numeric.overflow.check]
-template&lt;class T, class U&gt;
+template&lt;class T&gt;
 constexpr bool is_div_defined(T dividend, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: true if T is unsigned and divisor != 0 or
 true if divisor != 0 and the result of (dividend  / divisor) is representable as a value of type T, false if otherwise
 
-template&lt;class T, class U&gt;
+template&lt;class T&gt;
 constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: true if divisor != 0 and the result of (dividend_high × 2<sup>size_in_bits_of(T)</sup> | dividend_low) / divisor is representable as a value of type T, false if otherwise

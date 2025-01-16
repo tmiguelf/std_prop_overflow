@@ -1,0 +1,22 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="WSL_Debug" />
+    <BuildType Name="WSL_Release" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="std_ovf/std_ovf.vcxproj" Id="3c2d20f5-13fa-42a7-8f1c-17216b2a4165" />
+  <Project Path="submodules/googletest/googlemock/googlemock.vcxproj" Id="d093761a-08df-4a74-a0e3-f34db77a2118">
+    <Deploy Solution="WSL_Debug|*" />
+    <Deploy Solution="WSL_Release|*" />
+  </Project>
+  <Project Path="submodules/googletest/googletest/googletest.vcxproj" Id="0db6a04f-669b-47b3-9689-7b1a7f4c0943">
+    <Deploy Solution="WSL_Debug|*" />
+    <Deploy Solution="WSL_Release|*" />
+  </Project>
+  <Project Path="test/test.vcxproj" Id="9a287d75-dc34-46fc-b4b6-8878161d74e6">
+    <Deploy Solution="WSL_Debug|*" />
+    <Deploy Solution="WSL_Release|*" />
+  </Project>
+</Solution>

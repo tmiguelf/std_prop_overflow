@@ -4,7 +4,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<base href="" />
-		<title>R3161R1 - Unified integer overflow arithmetic</title>
+		<title>R3161R3 - Unified integer overflow arithmetic</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<style>
 			body{tab-size: 4;}
@@ -20,29 +20,13 @@
 			h4{margin-bottom: 0; margin-top: 8px;}
 
 			p { margin-top: 0;}
-
-			/*
-			ol.toc {
-				font-size: large;
-				padding-left: 0;
-				counter-reset: item;
-			}
-			ol.toc li {
-				padding-left: 16px;
-				display: block;
-			}
-			ol.toc li:before {
-				content: counters(item, ".") ". ";
-				counter-increment: item;
-			}*/
-
 		</style>
 	</head>
 	<body>
 		<h1>Unified integer overflow arithmetic</h1>
 		<table class="info">
-			<tr><td>Document Number:</td><td>P3161R1</td></tr>
-			<tr><td>Date:</td><td>2024/07/06</td></tr>
+			<tr><td>Document Number:</td><td>P3161R3</td></tr>
+			<tr><td>Date:</td><td>2025/01/16</td></tr>
 			<tr><td>Reply-to:</td><td>cpp@kaotic.software</td></tr>
 			<tr><td>Authors:</td><td>Tiago Freire</td></tr>
 			<tr><td>Audience:</td><td>SG6, LWG</td></tr>
@@ -58,6 +42,7 @@
 			<tr><td>0</td><td>Initial draft</td></tr>
 			<tr><td>1</td><td>Corrected suggested implementation of would_cast_modify, corrected div_wide definition, and made minor editorial changes.</td></tr>
 			<tr><td>2</td><td>Removed would_cast_modify in favor of existing in_range, added some code examples</td></tr>
+			<tr><td>3</td><td>Removed incorrect number of template parameters in wording. Added section of suggested optimizations and reference implementation.</td></tr>
 		</table>
 		<h2>Table of Contents</h2>
 		<p>
@@ -83,10 +68,12 @@
 			&nbsp;&nbsp;<a href="#Design.return">7.3. Return type</a><br />
 			&nbsp;&nbsp;<a href="#Design.class">7.4. Extra classifications</a><br />
 			<a href="#Name">8. Naming</a><br />
-			<a href="#feature">9. Feature test macro</a><br />
-			<a href="#wording">10. Wording</a><br />
-			<a href="#ack">11. Acknowledgements</a><br />
-			<a href="#reference">12. References</a><br />
+			<a href="#Optm">9. Code generation and optimization suggestions</a><br />
+			<a href="#Impl">10. Reference implementation</a><br />
+			<a href="#feature">11. Feature test macro</a><br />
+			<a href="#wording">12. Wording</a><br />
+			<a href="#ack">13. Acknowledgements</a><br />
+			<a href="#reference">14. References</a><br />
 		</p>
 		<h2 class="header" id="Motivation">1. Motivation</h2>
 		<p>In many applications sometimes one has to deal with integer arithmetic with numbers
@@ -191,7 +178,7 @@ constexpr add_carry_result&lt;T&gt; add_carry(T, T, bool carry) noexcept;
 		<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr sub_borrow_result&lt;T&gt; sub_borrow(T, T, bool borrow) noexcept;
+constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;
 </pre>
 		<h4>CPU support</h4>
 		<table class="matrix">
@@ -338,7 +325,7 @@ constexpr bool is_div_defined(T dividend, T divisor) noexcept;
 			<h4>Possible implementation:</h4>
 <pre>
 template&lt;typename T&gt;
-[[nodiscard]] inline bool is_div_defined([[maybe_unused]] T const dividend, T const divisor)
+[[nodiscard]] inline constexpr bool is_div_defined([[maybe_unused]] T const dividend, T const divisor) noexcept
 {
 	if constexpr(std::is_signed_v&lt;T&gt;)
 	{
@@ -364,7 +351,7 @@ constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) n
 		<h4>Possible implementation:</h4>
 <pre>
 template&lt;typename T&gt;
-[[nodiscard]] bool is_div_wide_defined(T const hi_dividend, [[maybe_unused]] T const low_dividend, T const divisor)
+[[nodiscard]] constexpr bool is_div_wide_defined(T const hi_dividend, [[maybe_unused]] T const low_dividend, T const divisor) noexcept
 {
 	if constexpr(std::is_signed_v&lt;T&gt;)
 	{
@@ -568,7 +555,6 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			But it is still the odd one out, it is better left for a future proposal if a use case exist.<br/>
 		</p>
 
-
 		<h2 class="header" id="bad_div">6. The problem with division</h2>
 		<p>
 			All functions in this paper have well defined behavior regardless of the input with the exceptions of those related to division.
@@ -602,7 +588,6 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			Since removing std::div_sat is a neutral problem independent of the addition of new features, and because fixing std::div may prove controversial, fixing them will not be part of this proposal.
 			I shall only be raising the issue now, proposal to fix it to come at a later date.
 		</p>
-
 
 		<h2 class="header" id="Design">7. Design choice analysis</h2>
 		<h3 class="header" id="Design.header">7.1. Library header</h3>
@@ -675,6 +660,7 @@ std::tie(value, remainder) = div_wide(...);
 		<p>With the exception of div_wide, all functions have "well" defined behavior, and they can all be made <b>constexpr</b> and <b>noexcept</b>.
 			There's a clear benefit to computing things at compile time if possible, and if one can optimize assuming that they don't throw exceptions, then why shouldn't they be?<br/>
 		</p>
+
 		<h2 class="header" id="Name">8. Naming</h2>
 		<p>Names like <b>add</b>, <b>sub</b>, <b>mul</b>, <b>div</b>, have long standing unwritten conventions as to what they should mean, its usage is unambiguous, there is precedent for it,
 		and they are all exactly 3 characters long which makes them look really nice when aligning them together. So I propose to keep that.
@@ -691,11 +677,143 @@ std::tie(value, remainder) = div_wide(...);
 			and the same type can be used for both without the need to proliferate unnecessary identical structures.
 		</p>
 
-		<h2 class="header" id="feature">9. Feature test macro</h2>
+		<h2 class="header" id="Optm">9. Code generation and optimization suggestions</h2>
+		<p>It is important to note that none of the functions proposed in this paper are intended to translate into a function call.<br/>
+			Although an actual function (that makes almost no assumptions) may need to exist in case a user might want to take a function pointer (or do memory inspection),
+			 the compiler should do a best effort to evaluate the context on how the functions are being used and replace them inline with optimized instructions on an "as-if" principle
+			(unless the platform being developed for doesn't have instructions that could easily achieve the result, and the implementation is so overwhelmingly complicated as to make the cost of function call is negligeable), and need not enforce any memory layout.<br/>
+			The following is a list of optimization suggestions (to be applied only on platforms where applicable and advantageous)
+		</p>
+		<h4>On all functions</h4>
+		<ul>
+			<li>If all inputs are constant values known at compile time, the function shall be eliminated, and the expected output is computed at compile time and used in place.</li>
+			<li>If the output is unused the function shall be eliminated</li>
+			<li>When chaining multiple operations where the output of one happens to occur precisely in a register where it can serve as the input of the next operation, surperfluous move instructions can be surpressed.
+				When generating fully optimized code, the compiler can re-order instructions (as long as it doesn't violate a dependency chain) in order to minimize surperfluous moves or flag sets.</li>
+		</ul>
+		<h4>add_carry</h4>
+		<ul>
+			<li>The addend operands A and B can be freely swapped (take advantage of the commutative property).
+				This can be useful when chaining multiple operations where one (or both) input is in a register that can be used in the addition but not in the trivial order.</li>
+			<li>If the input carry is known to have the value 0 at compile time, the compiler can chose an alternative add instruction (if it exists) that does not take a carry as an input.</li>
+			<li>If at least one of the addend operands are known at compile time and:
+				<ul>
+					<li>If the value is 0, the compiler can choose to directly add the input carry to the remaining operand or chose an alternative conditional increment instruction.</li>
+					<li>If the value is 1, the compiler can choose to swap the carry with this addend</li>
+				</ul>
+			</li>
+			<li>If the input carry and at least one of the addend operands are known at compile time, the compiler may add them together and:
+				<ul>
+					<li>If the result is 0, it shall be a no-op, the remaining operand shall be used as the result and the output overflow is 0</li>
+					<li>If the result is 1, it can be replaced by an increment instruction</li>
+					<li>If the operands are signed and the result is -1, it can be replaced by a decrement instruction</li>
+					<li>If the operands are unsigned and the result would overflow, it shall be a no-op, the remaining operand shall be used as the result and the output overflow is 1</li>
+					<li>If none of the above and the result did not overflow (signed operands), the compiler can chose to add the constant value to the remaining operand using a cheaper add instruction without an input carry.</li>
+				</ul>
+			</li>
+			<li>If both addend operands are known at compile time, their sum can be computed at compile time, and:
+				<ul>
+					<li>If the result is less than max value for the type but still representable, the resulting overflow is 0.</li>
+					<li>If the result is exactly max value for the type, the output overflow is the input carry.</li>
+					<li>If the result is more than max value for the type, the resulting overflow is 1.</li>
+					<li>If the input operands are signed and the result is exactly min -1, output overflow is the negation of the input carry.</li>
+					<li>If the input operands are signed and the result is less than min -1, the resulting overflow is 1.</li>
+				</ul>
+				The low_bits can be deduced by conditionally incrementing the precomputed result depending on carry.
+			</li>
+			<li>If the output overflow value produces no side effects (unread), the carry/overflow flags may not be read.</li>
+		</ul>
+		<h4>sub_borrow</h4>
+		<ul>
+			<li>If the input borrow is known to have the value 0 at compile time, the compiler can chose an alternative subtract instruction (if it exists) that does not take a borrow as an input.</li>
+			<li>If the subtrahend is known to have the value 0 at compile time, the compiler can choose an alternative conditional decrement instruction.</li>
+			<li>If the input borrow and minuend are known at compile time, the compiler may subtract the borrow from the minuend and:
+				<ul>
+					<li>If the operands are signed and the result is 0, the low_bits will be equal to -subtrahend and overflow is 1 if and only if subtrahend is equal to min.</li>
+					<li>If the operands are unsigned and the result is max, overflow is 0 and cheaper subtraction instruction maybe used.</li>
+				</ul>
+			</li>
+			<li>If the input borrow and subtrahend are known at compile time, the compiler may add the borrow to the subtrahend and:
+				<ul>
+					<li>If the result is 0, it shall be a no-op, overflow is 0 and low_bits is equal to minuend.</li>
+					<li>If none of the above and the result did not overflow, the compiler can chose to subtract the constant value to the remaining operand using a cheaper sub instruction without an input borrow.</li>
+				</ul>
+			</li>
+			<li>If the minuend and subtrahend operands are known at compile time, their difference can be computed at compile time, and:
+				<ul>
+					<li>If the result is more than min value for the type but still representable, the resulting overflow is 0.</li>
+					<li>If the result is exactly min value for the type, the output overflow is the input borrow.</li>
+					<li>If the result is less than min value for the type, the resulting overflow is 1.</li>
+					<li>If the result is exactly max +1, output overflow is the negation of the input borrow.</li>
+					<li>If the result is more than max +1, the resulting overflow is 1.</li>
+				</ul>
+				The low_bits can be deduced by conditionally decrementing the precomputed result depending on borrow.
+			</li>
+			<li>If the output overflow value produces no side effects (unread), the carry/overflow flag may not be read.</li>
+		</ul>
+		<h4>mul_wide</h4>
+		<ul>
+			<li>The operands A and B can be freely swapped (take advantage of the commutative property).
+				This can be useful when chaining multiple operations where one (or both) input is in a register that can be used in the multiplication but not in the trivial order.</li>
+			<li>If one of the operands is known at compile time and:
+				<ul>
+					<li>The value is 0, it shall be a no-op, the output shall have 0 on high_bits and low_bits.</li>
+					<li>The value is 1, it shall be a no-op, the output shall have 0 on high_bits, and low_bits shall be equal to the remaining input</li>
+					<li>The input operands are unsigned and the value is a power of 2, it can be replaced by a left shift instruction (provided that the ejects bits are recovered to form the high_bits)</li>
+					<li>The input operands are unsigned and the value is the max representable value, in the condition that it would be cheaper to do so, the result can be computed by having low_bits equal minus the remaining input,
+						and high_bits is equal to remaining input -1 if remaining input is not 0 (otherwise 0)</li>
+					<li>The input operands are unsigned and the value is -1, low_bits shall be equal to minus the remaining operand and high_bits shall be 0 or 1 filled depending if the remaining operand is negative.</li>
+				</ul>
+			</li>
+			<li>If the resulting high_bits are used but known at compile time to be only compared against 0, a cheaper multiplication instruction may be used and the overflow flag used in place of high_bits.
+				Note: If the optimization where 1 of the operands is known and is the maximum representable value and the operand is unsigned is taken, comparing the remaining operand to be &gt; 1 can be used instead.
+				If the optimization where 1 of the operands is known and is signed and the value is -1 is taken, checking if the remaining operand is not negative can be used instead.
+			</li>
+			<li>If the resulting high_bits are unused, cheaper multiplication instruction may be used where high_bits are unretrieved.</li>
+			<li>If the resulting low_bits are unused, cheaper instruction can be used to only compute the high_bits of the multiplication.</li>
+		</ul>
+		<h4>div_wide</h4>
+		<p>Note: compilation should always fail in a constexpr context if inputs are outside of the defined domain.</p>
+		<ul>
+			<li>Runtime behavior when inputs are in the undefined domain need not be consistent in any way, they may even display different behavior in seemingly identical circumstances.
+				The implementation may choose to crash the application or return any result, but should not lock the application in an infinite loop.
+			</li>
+			<li>If dividend_high is known at compile time and its value is 0, a cheaper division instruction/algorithm without high bits may be used.</li>
+			<li>If dividend_high and dividend_low are known at compile time and are both 0, it shall be a no-op, quotient and remainder shall be 0</li>
+			<li>If divisor is known at compile time and:
+				<ul>
+					<li>If its value is 0, it shall be a no-op, any valid undefined behavior is chosen.</li>
+					<li>If inputs are unsigned and dividend_high is known at compile time, and dividend_high >= divisor, it shall be a no-op, any valid undefined behavior is chosen.</li>
+					<li>If its value is 1, it shall be a no-op, quotient is dividend_low and remainder is 0.</li>
+					<li>If its value is -1, quotient is minus dividend_low and remainder is 0.</li>
+					<li>If input operands are unsigned and the value is a power of 2, it can be replaced by a right shift instruction (provided that the ejected bits are recovered to form the remainder).
+				</ul>
+				Note: If div_wide is unguarded by is_div_wide_defined and compiler knows at compile time that inputs to div_wide are in the undefined domain, it is strongly advised that compiler issues a warning.
+			</li>
+		</ul>
+		<p>Note: this list is not exhaustive, and many more optimization opportunities may exist depending on the platform.</p>
+		<h2 class="header" id="Impl">10. Reference implementation</h2>
+		<p>
+			A [<a href="#ref.library">reference implementation</a>] can be found on github. However, it is important to note what implementation is and what it isn't.<br />
+			It can be used as a point of reference in order to experiment with the behavior of the features being proposed,
+			and to illustrate how this feature could have looked like had it been implemented as a library without any additional support.<br />
+			This is code is not necessarily bug free. Bust most importantly it is <b>not</b> how a final implementation should look like.<br />
+			It perfectly illustrates the challenges a developer would face if they wanted to implement these features as a portable and independent third party library.<br />
+			C++ developers when writing C++ have limited ability to express in code that these functions should use different types of optimizations
+			depending on how the results of these functions are later used, or mutate depending on the properties of the input arguments that the compiler can know at compile time.
+			Meaning that the optimization opportunities referenced in <a href="#Optm">section 9</a> would be outside of reach for a third party developer without explicit support of the compiler.
+			And without these optimizations the code generation is so heavily penalized compared to what it could have been as to make this proposal almost pointless.<br />
+			The reference also illustrates the difficulty of implementing these features effectively using only standard C++,
+			and in order to be efficient it relies heavily on compiler specific features and even inline assembly with instructions specific to a particular CPU.
+			A developer trying to deliver these features as a portable third party library would be faced with the monumental task of having to tailor code specifically for every permutation of compiler and CPU that the library aimed to support.
+			This would result in a large amount of code that would need to be written and maintained for what is in practice a few lines of assembly. On the other hand, a compiler vendor would not have such problems because the only compiler they need to worry is their own,
+			and often only have to worry about the specific platform they are making a release for.<br />
+			Hence why this feature should be a part of the standard.
+		</p>
+		<h2 class="header" id="feature">11. Feature test macro</h2>
 		<p>I propose the usage of __cpp_lib_overflow_arithmetic as a test feature for all families and remove __cpp_lib_saturation_arithmetic.</p>
 
-
-		<h2 class="header" id="wording">10. Wording</h2>
+		<h2 class="header" id="wording">12. Wording</h2>
 		<p>
 			In subclause 27.9 [numeric.ops.overview], change &lt;numeric&gt; as indicated:<br />
 				<pre class="remove"><s>// 27.10.17, saturation arithmetic</s></pre><br />
@@ -716,7 +834,7 @@ struct add_carry_result {       // freestanding
 };
 
 template&lt;class T&gt;
-using sub_borrow_result = add_carry_result;
+using sub_borrow_result = add_carry_result&lt;T&gt;;
 
 template&lt;class T&gt;
 struct mul_wide_result {       // freestanding
@@ -733,7 +851,7 @@ struct div_result {            // freestanding
 template&lt;class T&gt;
 constexpr add_carry_result&lt;T&gt; add_carry(T x, T y, bool carry) noexcept;            //freestanding
 template&lt;class T&gt;
-constexpr sub_borrow_result&lt;T&gt; sub_borrow(T left, T right, bool borrow) noexcept;  //freestanding
+constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;  //freestanding
 template&lt;class T&gt;
 constexpr mul_wide_result&lt;T&gt; mul_wide(T x, T y) noexcept;                          //freestanding
 template&lt;class T&gt;
@@ -815,9 +933,9 @@ Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: add_carry_result&lt;T&gt; with the member <i>low_bits</i> set to the result x + y + (carry ? 1 : 0) truncated to the size of T, the member <i>overflow</i> is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
-constexpr sub_borrow_result&lt;T&gt; sub_borrow(T left, T right, bool borrow) noexcept;
+constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: sub_borrow_result&lt;T&gt; with the member <i>low_bits</i> set to the e result left - right - (borrow ? 1 : 0), the member <i>overflow</i> is set to true if result is not representable as a value of type T and false if otherwise.
+Returns: sub_borrow_result&lt;T&gt; with the member <i>low_bits</i> set to the e result minuend - subtrahend - (borrow ? 1 : 0), the member <i>overflow</i> is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
 constexpr mul_wide_result&lt;T&gt; mul_wide(T x, T y) noexcept;
@@ -832,13 +950,13 @@ Preconditions: is_div_wide_defined(dividend_high, dividend_low, divisor) evaluat
 Remarks: A function call expression that violates the precondition in the Preconditions element is not a core constant expression ([expr.const]).
 
 27.10.17.3 Checking[numeric.overflow.check]
-template&lt;class T, class U&gt;
+template&lt;class T&gt;
 constexpr bool is_div_defined(T dividend, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: true if T is unsigned and divisor != 0 or
 true if divisor != 0 and the result of (dividend  / divisor) is representable as a value of type T, false if otherwise
 
-template&lt;class T, class U&gt;
+template&lt;class T&gt;
 constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: true if divisor != 0 and the result of (dividend_high × 2<sup>size_in_bits_of(T)</sup> | dividend_low) / divisor is representable as a value of type T, false if otherwise
@@ -858,9 +976,9 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 <pre class="add">#define __cpp_lib_overflow_arithmetic</pre>
 		</p>
 
-		<h2 class="header" id="ack">11. Acknowledgements</h2>
+		<h2 class="header" id="ack">13. Acknowledgements</h2>
 		<p>Thanks to Jan Schultke for the feedback on function return types and editorial review.</p>
-		<h2 class="header" id="reference">12. References</h2>
+		<h2 class="header" id="reference">14. References</h2>
 			<p>
 				<ol>
 					<li id="ref.P0543R3"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p0543r3.html" target="_blank">ISO/IEC JTC1 SC22 WG21 P0543R3</a>: Saturation arithmetic by Jens Maurer</li>
@@ -871,6 +989,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 					<li id="ref.msvc"><a href="https://learn.microsoft.com/en-us/cpp/intrinsics/alphabetical-listing-of-intrinsic-functions" target="_blank">MSVC intrinsics</a></li>
 					<li id="ref.clang"><a href="https://clang.llvm.org/docs/LanguageExtensions.html#multiprecision-arithmetic-builtins" target="_blank">Clang builtins</a></li>
 					<li id="ref.codextract"><a href="https://github.com/tmiguelf/utilities/blob/8f486a19a41466b7324efd3e99a4557bf846f828/CoreLib/src/string/fp_charconv_round.cpp#L539-L561" target="_blank">Code extract</a> on floating point char conversion</li>
+					<li id="ref.library"><a href="https://github.com/tmiguelf/std_prop_overflow" target="_blank">https://github.com/tmiguelf/std_prop_overflow</a> - Reference implementation</li>
 				</ol>
 			</p>
 	</body>

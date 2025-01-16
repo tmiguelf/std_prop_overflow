@@ -17,6 +17,14 @@
 
 #endif
 
+#if ( defined (__GNUG__) || defined(__GNUC__) )
+#	define FORCE_INLINE __attribute__((always_inline))
+#elif ( defined (_MSC_VER ) )
+#	define FORCE_INLINE __forceinline
+#else
+#	define FORCE_INLINE
+#endif
+
 //__readeflags
 
 namespace std
@@ -97,7 +105,7 @@ namespace std
 
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	constexpr add_carry_result<T> add_carry(T vA, T const vB, bool carry) noexcept
+	FORCE_INLINE constexpr add_carry_result<T> add_carry(T vA, T const vB, bool carry) noexcept
 	{
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 		if constexpr (std::is_unsigned_v<T>)
@@ -210,7 +218,7 @@ namespace std
 	}
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	constexpr sub_borrow_result<T> sub_borrow(T vA, T const vB, bool borrow) noexcept
+	FORCE_INLINE constexpr sub_borrow_result<T> sub_borrow(T vA, T const vB, bool borrow) noexcept
 	{
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 		if constexpr (std::is_unsigned_v<T>)
@@ -323,7 +331,7 @@ namespace std
 	}
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	constexpr mul_wide_result<T> mul_wide(T vA, T const vB) noexcept
+	FORCE_INLINE constexpr mul_wide_result<T> mul_wide(T vA, T const vB) noexcept
 	{
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 		if constexpr ( std::is_unsigned_v<T> )
@@ -455,7 +463,7 @@ namespace std
 	};
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	constexpr bool is_div_defined([[maybe_unused]] T const dividend, T const divisor) noexcept
+	FORCE_INLINE constexpr bool is_div_defined([[maybe_unused]] T const dividend, T const divisor) noexcept
 	{
 		if constexpr(std::is_signed_v<T>)
 		{
@@ -517,7 +525,6 @@ namespace std
 					return hi_flag < div;
 				}
 			}
-
 		}
 		else
 		{
@@ -526,7 +533,7 @@ namespace std
 	}
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	constexpr div_result<T> div_wide(T dividend_high, T dividend_low, T divisor) noexcept
+	FORCE_INLINE constexpr div_result<T> div_wide(T dividend_high, T dividend_low, T divisor) noexcept
 	{
 		if(std::is_constant_evaluated())
 		{

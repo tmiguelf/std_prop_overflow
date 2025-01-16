@@ -47,7 +47,7 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(SolutionDir)locations.props" />
     <Import Project="$(quickMSBuildPath)default.cpp.props" />
-    <Import Project="$(stdOVFPath)std_ovf.import.props" />
+    <Import Project="$(stdOVFPath)std_ovf.include.props" />
     <Import Project="$(googletestPath)googletest.import.props" />
     <Import Project="$(googlemockPath)googlemock.import.props" />
   </ImportGroup>

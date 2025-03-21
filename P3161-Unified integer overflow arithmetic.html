@@ -4,7 +4,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<base href="" />
-		<title>R3161R3 - Unified integer overflow arithmetic</title>
+		<title>R3161R4 - Unified integer overflow arithmetic</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<style>
 			body{tab-size: 4;}
@@ -25,8 +25,8 @@
 	<body>
 		<h1>Unified integer overflow arithmetic</h1>
 		<table class="info">
-			<tr><td>Document Number:</td><td>P3161R3</td></tr>
-			<tr><td>Date:</td><td>2025/01/16</td></tr>
+			<tr><td>Document Number:</td><td>P3161R4</td></tr>
+			<tr><td>Date:</td><td>2025/03/21</td></tr>
 			<tr><td>Reply-to:</td><td>cpp@kaotic.software</td></tr>
 			<tr><td>Authors:</td><td>Tiago Freire</td></tr>
 			<tr><td>Audience:</td><td>SG6, LWG</td></tr>
@@ -43,6 +43,7 @@
 			<tr><td>1</td><td>Corrected suggested implementation of would_cast_modify, corrected div_wide definition, and made minor editorial changes.</td></tr>
 			<tr><td>2</td><td>Removed would_cast_modify in favor of existing in_range, added some code examples</td></tr>
 			<tr><td>3</td><td>Removed incorrect number of template parameters in wording. Added section of suggested optimizations and reference implementation.</td></tr>
+			<tr><td>4</td><td>Added miscelaneous wording corrections. Updated wording to reflect latest draft.</td></tr>
 		</table>
 		<h2>Table of Contents</h2>
 		<p>
@@ -814,13 +815,14 @@ std::tie(value, remainder) = div_wide(...);
 		<p>I propose the usage of __cpp_lib_overflow_arithmetic as a test feature for all families and remove __cpp_lib_saturation_arithmetic.</p>
 
 		<h2 class="header" id="wording">12. Wording</h2>
+		<p>Wording is done in reference to [<a href="#ref.draft">N5008</a>].</p>
 		<p>
-			In subclause 27.9 [numeric.ops.overview], change &lt;numeric&gt; as indicated:<br />
-				<pre class="remove"><s>// 27.10.17, saturation arithmetic</s></pre><br />
-				<pre class="add">// 27.10.17, overflow arithmetic</pre>
+			In subclause 26.9 [numeric.ops.overview], change &lt;numeric&gt; as indicated:<br />
+				<pre class="remove"><s>// 26.10.17, saturation arithmetic</s></pre><br />
+				<pre class="add">// 26.10.17, overflow arithmetic</pre>
 		</p>
 		<p>
-			In subclause 27.9 [numeric.ops.overview], add to header <numeric> as indicated:<br />
+			In subclause 26.9 [numeric.ops.overview], add to header <numeric> as indicated:<br />
 <pre class="no_change">
 template&lt;class T, class U&gt;
   constexpr T saturate_cast(U x) noexcept;          // freestanding
@@ -865,13 +867,13 @@ constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) n
 <pre class="no_change">}</pre>
 		</p>
 		<p>
-			Rename subclause 27.10.17 <s>[numeric.sat]</s> to [numeric.overflow]
+			Rename subclause 26.10.17 <s>[numeric.sat]</s> to [numeric.overflow]
 		</p>
 		<p>
-			Amend subclauses 27.10.17 as follows<br />
-<pre class="remove"><s>27.10.17.1 Arithmetic functions [numerics.sat.func]</s></pre><br />
+			Amend subclauses 26.10.17 as follows<br />
+<pre class="remove"><s>26.10.17.1 Arithmetic functions [numerics.sat.func]</s></pre><br />
 <pre class="add">
-27.10.17.1 Arithmetic typedefs [numerics.overflow.typedefs]
+26.10.17.1 Arithmetic typedefs [numerics.overflow.typedefs]
 
 template&lt;class T&gt;
 struct add_carry_result {
@@ -897,7 +899,7 @@ struct div_result {
 };
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 
-27.10.17.2 Arithmetic functions [numerics.overflow.func]
+26.10.17.2 Arithmetic functions [numerics.overflow.func]
 </pre><br />
 <pre class="no_change">
 [Note 1: In the following descriptions, an arithmetic operation is performed as a mathematical operation with infinite range and then it is determined whether the mathematical result fits into the result type. — end note]
@@ -930,40 +932,39 @@ Remarks: A function call expression that violates the precondition in the Precon
 template&lt;class T&gt;
 constexpr add_carry_result&lt;T&gt; add_carry(T x, T y, bool carry) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: add_carry_result&lt;T&gt; with the member <i>low_bits</i> set to the result x + y + (carry ? 1 : 0) truncated to the size of T, the member <i>overflow</i> is set to true if result is not representable as a value of type T and false if otherwise.
+Returns: add_carry_result&lt;T&gt; with the member <b>low_bits</b> set to the result of x + y + (carry ? 1 : 0) truncated to the size of T, the member <b>overflow</b> is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
 constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: sub_borrow_result&lt;T&gt; with the member <i>low_bits</i> set to the e result minuend - subtrahend - (borrow ? 1 : 0), the member <i>overflow</i> is set to true if result is not representable as a value of type T and false if otherwise.
+Returns: sub_borrow_result&lt;T&gt; with the member <b>low_bits</b> set to the result of minuend - subtrahend - (borrow ? 1 : 0) truncated to the size of T, the member <b>overflow</b> is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
 constexpr mul_wide_result&lt;T&gt; mul_wide(T x, T y) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: mul_wide_result&lt;T&gt; set with the result of x × y, the member <i>low_bits</i> is set with the least significant bits that can fit in a value of type T and the member <i>high_bits</i> is set with the most significant bits.
+Returns: mul_wide_result&lt;T&gt; with the result of x × y, the member <b>low_bits</b> is set to the least significant bits that can fit in a value of type T and the member <b>high_bits</b> is set to the most significant bits.
 
 template&lt;class T&gt;
 constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: div_result with the member <i>quotient</i> set to the result of (dividend_high × 2<sup>8sizeof(T)</sup> |	 dividend_low) / divisor, and the member <i>remainder</i> set to the remainder of the same division.
-Preconditions: is_div_wide_defined(dividend_high, dividend_low, divisor) evaluates to true
+Returns: div_result with the member <b>quotient</b> set to the result of (dividend_high × 2<sup>(number of bits of T)</sup> | dividend_low) / divisor, and the member <b>remainder</b> set to the remainder of the same division.
+Preconditions: is_div_wide_defined(dividend_high, dividend_low, divisor) evaluates to true.
 Remarks: A function call expression that violates the precondition in the Preconditions element is not a core constant expression ([expr.const]).
 
-27.10.17.3 Checking[numeric.overflow.check]
+26.10.17.3 Checking[numeric.overflow.check]
 template&lt;class T&gt;
 constexpr bool is_div_defined(T dividend, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: true if T is unsigned and divisor != 0 or
-true if divisor != 0 and the result of (dividend  / divisor) is representable as a value of type T, false if otherwise
+Returns: true if divisor is not 0 and the result of (dividend / divisor) is representable as a value of type T, false if otherwise.
 
 template&lt;class T&gt;
 constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: true if divisor != 0 and the result of (dividend_high × 2<sup>size_in_bits_of(T)</sup> | dividend_low) / divisor is representable as a value of type T, false if otherwise
+Returns: true if divisor is not 0 and the result of (dividend_high × 2<sup>(number of bits in T)</sup> OR dividend_low) / divisor is representable as a value of type T, false if otherwise.
 
 </pre><br />
-<pre class="remove"><s>27.10.17.2 Casting[numeric.sat.cast]</s></pre><br />
-<pre class="add">27.10.17.4 Casting[numeric.overflow.cast]</pre><br />
+<pre class="remove"><s>26.10.17.2 Casting[numeric.sat.cast]</s></pre><br />
+<pre class="add">26.10.17.4 Casting[numeric.overflow.cast]</pre><br />
 <pre class="no_change">template&lt;class R, class T&gt;
   constexpr R saturate_cast(T x) noexcept;
 Constraints: R and T are signed or unsigned integer types ([basic.fundamental]).
@@ -990,6 +991,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 					<li id="ref.clang"><a href="https://clang.llvm.org/docs/LanguageExtensions.html#multiprecision-arithmetic-builtins" target="_blank">Clang builtins</a></li>
 					<li id="ref.codextract"><a href="https://github.com/tmiguelf/utilities/blob/8f486a19a41466b7324efd3e99a4557bf846f828/CoreLib/src/string/fp_charconv_round.cpp#L539-L561" target="_blank">Code extract</a> on floating point char conversion</li>
 					<li id="ref.library"><a href="https://github.com/tmiguelf/std_prop_overflow" target="_blank">https://github.com/tmiguelf/std_prop_overflow</a> - Reference implementation</li>
+					<li id="ref.draft"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/n5008.pdf" target="_blank">N5008</a> - Working Draft Programming Languages — C++</li>
 				</ol>
 			</p>
 	</body>

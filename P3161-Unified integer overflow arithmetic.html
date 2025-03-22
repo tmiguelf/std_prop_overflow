@@ -43,7 +43,7 @@
 			<tr><td>1</td><td>Corrected suggested implementation of would_cast_modify, corrected div_wide definition, and made minor editorial changes.</td></tr>
 			<tr><td>2</td><td>Removed would_cast_modify in favor of existing in_range, added some code examples</td></tr>
 			<tr><td>3</td><td>Removed incorrect number of template parameters in wording. Added section of suggested optimizations and reference implementation.</td></tr>
-			<tr><td>4</td><td>Added miscelaneous wording corrections. Updated wording to reflect latest draft.</td></tr>
+			<tr><td>4</td><td>Dropped feature test macro substitution. Updated wording to reflect latest draft. Restructured motivation. Other miscellaneous wording corrections.</td></tr>
 		</table>
 		<h2>Table of Contents</h2>
 		<p>
@@ -71,10 +71,9 @@
 			<a href="#Name">8. Naming</a><br />
 			<a href="#Optm">9. Code generation and optimization suggestions</a><br />
 			<a href="#Impl">10. Reference implementation</a><br />
-			<a href="#feature">11. Feature test macro</a><br />
-			<a href="#wording">12. Wording</a><br />
-			<a href="#ack">13. Acknowledgements</a><br />
-			<a href="#reference">14. References</a><br />
+			<a href="#wording">11. Wording</a><br />
+			<a href="#ack">12. Acknowledgements</a><br />
+			<a href="#reference">13. References</a><br />
 		</p>
 		<h2 class="header" id="Motivation">1. Motivation</h2>
 		<p>In many applications sometimes one has to deal with integer arithmetic with numbers
@@ -90,7 +89,7 @@
 			Taking into consideration that:
 			<ol>
 				<li>Some multi-word operations require a combination of multiple instances of such functions for a specific type.</li>
-				<li>CPUs (such as x86-64) may require certain operands to be preloaded into specific registers, and this is typically achieved by mov instruction for both preparation and the recovery of the result.</li>
+				<li>CPUs (such as x86-64 or arm64) may require certain operands to be preloaded into specific registers, and this is typically achieved by mov instruction for both preparation and the recovery of the result.</li>
 				<li>And in many of these cases the output register just so happens to be perfectly aligned with the register where the value needs to be
 					on a follow up operation, making a mov operations unnecessary.</li>
 			</ol>
@@ -798,7 +797,7 @@ std::tie(value, remainder) = div_wide(...);
 			A [<a href="#ref.library">reference implementation</a>] can be found on github. However, it is important to note what implementation is and what it isn't.<br />
 			It can be used as a point of reference in order to experiment with the behavior of the features being proposed,
 			and to illustrate how this feature could have looked like had it been implemented as a library without any additional support.<br />
-			This is code is not necessarily bug free. Bust most importantly it is <b>not</b> how a final implementation should look like.<br />
+			This code is not necessarily bug free. Bust most importantly it is <b>not</b> how a final implementation should look like.<br />
 			It perfectly illustrates the challenges a developer would face if they wanted to implement these features as a portable and independent third party library.<br />
 			C++ developers when writing C++ have limited ability to express in code that these functions should use different types of optimizations
 			depending on how the results of these functions are later used, or mutate depending on the properties of the input arguments that the compiler can know at compile time.
@@ -807,14 +806,10 @@ std::tie(value, remainder) = div_wide(...);
 			The reference also illustrates the difficulty of implementing these features effectively using only standard C++,
 			and in order to be efficient it relies heavily on compiler specific features and even inline assembly with instructions specific to a particular CPU.
 			A developer trying to deliver these features as a portable third party library would be faced with the monumental task of having to tailor code specifically for every permutation of compiler and CPU that the library aimed to support.
-			This would result in a large amount of code that would need to be written and maintained for what is in practice a few lines of assembly. On the other hand, a compiler vendor would not have such problems because the only compiler they need to worry is their own,
-			and often only have to worry about the specific platform they are making a release for.<br />
+			This would result in a large amount of code that would need to be written and maintained for what is in practice a few lines of assembly.<br />
 			Hence why this feature should be a part of the standard.
 		</p>
-		<h2 class="header" id="feature">11. Feature test macro</h2>
-		<p>I propose the usage of __cpp_lib_overflow_arithmetic as a test feature for all families and remove __cpp_lib_saturation_arithmetic.</p>
-
-		<h2 class="header" id="wording">12. Wording</h2>
+		<h2 class="header" id="wording">11. Wording</h2>
 		<p>Wording is done in reference to [<a href="#ref.draft">N5008</a>].</p>
 		<p>
 			In subclause 26.9 [numeric.ops.overview], change &lt;numeric&gt; as indicated:<br />
@@ -932,22 +927,22 @@ Remarks: A function call expression that violates the precondition in the Precon
 template&lt;class T&gt;
 constexpr add_carry_result&lt;T&gt; add_carry(T x, T y, bool carry) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: add_carry_result&lt;T&gt; with the member <b>low_bits</b> set to the result of x + y + (carry ? 1 : 0) truncated to the size of T, the member <b>overflow</b> is set to true if result is not representable as a value of type T and false if otherwise.
+Returns: add_carry_result&lt;T&gt; with the member low_bits set to the result of x + y + (carry ? 1 : 0) truncated to the size of T, the member overflow is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
 constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: sub_borrow_result&lt;T&gt; with the member <b>low_bits</b> set to the result of minuend - subtrahend - (borrow ? 1 : 0) truncated to the size of T, the member <b>overflow</b> is set to true if result is not representable as a value of type T and false if otherwise.
+Returns: sub_borrow_result&lt;T&gt; with the member low_bits set to the result of minuend - subtrahend - (borrow ? 1 : 0) truncated to the size of T, the member overflow is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
 constexpr mul_wide_result&lt;T&gt; mul_wide(T x, T y) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: mul_wide_result&lt;T&gt; with the result of x × y, the member <b>low_bits</b> is set to the least significant bits that can fit in a value of type T and the member <b>high_bits</b> is set to the most significant bits.
+Returns: mul_wide_result&lt;T&gt; with the result of x × y, the member low_bits is set to the least significant bits that can fit in a value of type T and the member high_bits is set to the most significant bits.
 
 template&lt;class T&gt;
 constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: div_result with the member <b>quotient</b> set to the result of (dividend_high × 2<sup>(number of bits of T)</sup> | dividend_low) / divisor, and the member <b>remainder</b> set to the remainder of the same division.
+Returns: div_result with the member quotient set to the result of (dividend / divisor) where dividend is a number twice the width of T who's high bits are set to dividend_high and low bits are set to dividend_low; and the member remainder set to the remainder of the same division.
 Preconditions: is_div_wide_defined(dividend_high, dividend_low, divisor) evaluates to true.
 Remarks: A function call expression that violates the precondition in the Preconditions element is not a core constant expression ([expr.const]).
 
@@ -960,7 +955,7 @@ Returns: true if divisor is not 0 and the result of (dividend / divisor) is repr
 template&lt;class T&gt;
 constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
-Returns: true if divisor is not 0 and the result of (dividend_high × 2<sup>(number of bits in T)</sup> OR dividend_low) / divisor is representable as a value of type T, false if otherwise.
+Returns: true if divisor is not 0 and the result of (dividend / divisor) is representable as a value of type T, where dividend is a number twice the width of T who's high bits are set to dividend_high and low bits are set to dividend_low; false if otherwise.
 
 </pre><br />
 <pre class="remove"><s>26.10.17.2 Casting[numeric.sat.cast]</s></pre><br />
@@ -972,14 +967,13 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 </pre>
 		</p>
 		<p>
-		Amend a feature-test macro in [version.syn]:<br />
-<pre class="remove"><s>#define __cpp_lib_saturation_arithmetic</s></pre><br />
+		Add a feature-test macro in [version.syn]:<br />
 <pre class="add">#define __cpp_lib_overflow_arithmetic</pre>
 		</p>
 
-		<h2 class="header" id="ack">13. Acknowledgements</h2>
-		<p>Thanks to Jan Schultke for the feedback on function return types and editorial review.</p>
-		<h2 class="header" id="reference">14. References</h2>
+		<h2 class="header" id="ack">12. Acknowledgements</h2>
+		<p>Thanks to Jan Schultke and Jonathan Wakely for their editorial reviews.</p>
+		<h2 class="header" id="reference">13. References</h2>
 			<p>
 				<ol>
 					<li id="ref.P0543R3"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p0543r3.html" target="_blank">ISO/IEC JTC1 SC22 WG21 P0543R3</a>: Saturation arithmetic by Jens Maurer</li>

@@ -584,3 +584,77 @@ TYPED_TEST(numeric_ovf_typed_test_T, div_wide)
 		}
 	}
 }
+
+TYPED_TEST(numeric_ovf_typed_test_T, mull_add_wide)
+{
+	using num_T = TypeParam;
+
+	struct TestCase_t
+	{
+		num_T const vA;
+		num_T const vB;
+		num_T const addend;
+		num_T const e_low;
+		num_T const e_hi;
+
+		std::string format() const
+		{
+			return std::format("vA={} vB={} added={}", vA, vB, addend);
+		}
+
+		consteval bool constexpr_check() const
+		{
+			{
+				std::mul_wide_result const result = std::mul_add_wide(vA, vB, addend);
+				if (result.low_bits != e_low || result.high_bits != e_hi)
+				{
+					return false;
+				}
+			}
+			if (vA != vB)
+			{
+				std::mul_wide_result const result = std::mul_add_wide(vB, vA, addend);
+				if (result.low_bits != e_low || result.high_bits != e_hi)
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+	};
+
+
+	constexpr num_T max = std::numeric_limits<num_T>::max();
+
+	if constexpr (std::is_unsigned_v<num_T>)
+	{
+		std::array constexpr testCases
+		{
+			TestCase_t{.vA = 0, .vB = 0, .addend = 0, .e_low = 0, .e_hi = 0},
+			TestCase_t{.vA = max, .vB = max, .addend = max, .e_low = 0, .e_hi = max},
+		};
+
+		constexpr bool constexpr_result = constexpr_test(testCases);
+		constexpr uintptr_t constexpr_findex = constexpr_fail_index(testCases);
+
+		ASSERT_TRUE(constexpr_result) << "constexpr " << testCases[constexpr_findex].format();
+
+		for (TestCase_t const& testCase : testCases)
+		{
+			{
+				std::mul_wide_result const result = std::mul_add_wide(testCase.vA, testCase.vB, testCase.addend);
+				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
+				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
+			}
+			if (testCase.vA != testCase.vB)
+			{
+				std::mul_wide_result const result = std::mul_add_wide(testCase.vB, testCase.vA, testCase.addend);
+				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
+				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
+			}
+		}
+	}
+
+
+
+}

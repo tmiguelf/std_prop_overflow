@@ -752,7 +752,95 @@ namespace std
 			}
 		}
 
-	};
+	}
+
+	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
+	FORCE_INLINE constexpr mul_wide_result<T> mul_add_wide(T vA, T const vB, T const addend) noexcept
+	{
+		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
+		if constexpr (std::is_unsigned_v<T>)
+		{
+#if defined(__PORTABLE_ARCH_AMD64__)
+#	if ( defined (__GNUG__) || defined(__GNUC__) )
+			if (!std::is_constant_evaluated() && sizeof(T) != sizeof(uint8_t))
+			{
+				int_t hi_res;
+				__asm__
+				(
+					"mul %[b];"
+					: "+a"(vA), "=d"(hi_res)
+					: [b] "r"(vB)
+				);
+
+				__asm__
+				(
+					"add %[b], %[a];"
+					"adc %[z], %[c];"
+					: [a] "+rm"(vA), [c]"+rm"(hi_res)
+					: [b] "rm"(addend), [z]"n"(0)
+				);
+
+				return { .low_bits = static_cast<T>(vA), .high_bits = static_cast<T>(hi_res) };
+			}
+			else
+#	elif defined(_WIN32)
+			if (!std::is_constant_evaluated() && sizeof(T) == sizeof(uint64_t))
+			{
+				uint64_t res_high;
+				uint64_t res_low = _umul128(static_cast<uint64_t>(vA), static_cast<uint64_t>(vB), &res_high);
+				res_high += _addcarry_u64(0, addend, &res_low);
+
+				return { .low_bits = static_cast<T>(res_low), .high_bits = static_cast<T>(res_high) };
+			}
+			else if (!std::is_constant_evaluated() && sizeof(T) == sizeof(uint32_t))
+			{
+				uint64_t const res = __emulu(static_cast<unsigned int>(vA), static_cast<unsigned int>(vB)) + static_cast<uint64_t>(addend);
+				return { .low_bits = static_cast<T>(res), .high_bits = static_cast<T>(res >> 32) };
+			}
+			else
+#	endif
+#endif
+			{
+				if constexpr (sizeof(T) == sizeof(uint64_t))
+				{
+
+					constexpr uint64_t low_mask = 0xFFFFFFFF;
+					uint64_t const Al = static_cast<uint64_t>(vA) & low_mask;
+					uint64_t const Ah = static_cast<uint64_t>(vA) >> 32;
+					uint64_t const Bl = static_cast<uint64_t>(vB) & low_mask;
+					uint64_t const Bh = static_cast<uint64_t>(vB) >> 32;
+
+					add_carry_result<uint64_t> const addc_result_l = add_carry<uint64_t>(vA * vB, addend, 0);
+					add_carry_result<uint64_t> const addc_result_h = add_carry<uint64_t>(Al * Bh + ((Al * Bl) >> 32), Ah * Bl, 0);
+
+					return
+					{
+						.low_bits = addc_result_l.low_bits,
+						.high_bits = static_cast<T>((Ah * Bh) + (addc_result_h.low_bits >> 32) + (addc_result_h.overflow ? 0x100000000 : 0)) + addc_result_l.overflow
+					};
+				}
+				else
+				{
+					using over_uint_t = __OVERFLOW__PRIVATE__::int_clobber_type<sizeof(int_t) * 2, false>::type;
+					constexpr uint8_t offset = (sizeof(int_t) * 8);
+					over_uint_t const temp_result = static_cast<over_uint_t>(static_cast<over_uint_t>(vA) * static_cast<over_uint_t>(vB) + static_cast<over_uint_t>(addend));
+					return { .low_bits = static_cast<T>(temp_result), .high_bits = static_cast<T>(temp_result >> offset) };
+				}
+			}
+		}
+		else if constexpr (std::is_signed_v<T>)
+		{
+#if 0
+#endif
+		}
+		return { .low_bits = static_cast<T>(0), .high_bits = static_cast<T>(0) };
+	}
+
+	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
+	FORCE_INLINE constexpr mul_wide_result<T> mul_add2_wide(T vA, T const vB, T const addendA, T const addendB) noexcept
+	{
+
+	}
 
 } //namespace std
 

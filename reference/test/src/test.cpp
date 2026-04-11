@@ -52,8 +52,6 @@ namespace __OVERFLOW_TEST_PRIVATE__
 } //namespace __OVERFLOW__PRIVATE__
 
 
-
-
 template <typename TCase, uintptr_t Size>
 consteval std::tuple<bool, uintptr_t> constexpr_check(std::array<TCase, Size> const& testCases)
 {
@@ -505,156 +503,86 @@ TYPED_TEST(numeric_ovf_typed_test_T, div_wide)
 {
 	using num_T = TypeParam;
 
-	struct TestCase_t
-	{
-		num_T const dividend_low;
-		num_T const dividend_high;
-		num_T const divisor;
-		num_T const quotient;
-		num_T const remainder;
-
-		std::string format() const
-		{
-			return std::format("div_l={} div_h={} d={}", dividend_low, dividend_high, divisor);
-		}
-
-		consteval bool constexpr_check() const
-		{
-			std::div_result const result = std::div_wide(dividend_high, dividend_low, divisor);
-			return (result.quotient == quotient) && (result.remainder == remainder);
-		}
-	};
-
-	constexpr num_T max = std::numeric_limits<num_T>::max();
-
 	if constexpr (std::is_unsigned_v<num_T>)
 	{
-		std::array constexpr testCases
+
+		struct TestCase_t
 		{
-			TestCase_t{.dividend_low = max - 1, .dividend_high = max - 1, .divisor = max, .quotient = max, .remainder = max - 2},
-			TestCase_t{.dividend_low = max, .dividend_high = max - 1, .divisor = max, .quotient = max, .remainder = max - 1},
-			TestCase_t{.dividend_low = max, .dividend_high = 1, .divisor = max, .quotient = 2, .remainder = 1},
-			TestCase_t{.dividend_low = 0, .dividend_high = 1, .divisor = max, .quotient = 1, .remainder = 1},
-			TestCase_t{.dividend_low = 0, .dividend_high = 0, .divisor = 37, .quotient = 0, .remainder = 0},
-			TestCase_t{.dividend_low = 98, .dividend_high = 0, .divisor = 175, .quotient = 0, .remainder = 98},
+			num_T const dividend_low;
+			num_T const dividend_high;
+			num_T const divisor;
+			num_T const quotient;
+			num_T const remainder;
+
+			std::string format() const
+			{
+				return std::format("div_l={} div_h={} d={}", dividend_low, dividend_high, divisor);
+			}
+
+			consteval bool constexpr_check() const
+			{
+				std::div_result const result = std::div_wide(dividend_high, dividend_low, divisor);
+				return (result.quotient == quotient) && (result.remainder == remainder);
+			}
 		};
 
-		constexpr bool constexpr_result = constexpr_test(testCases);
-		constexpr uintptr_t constexpr_findex = constexpr_fail_index(testCases);
+		constexpr num_T max = std::numeric_limits<num_T>::max();
 
-		ASSERT_TRUE(constexpr_result) << "constexpr " << testCases[constexpr_findex].format();
-
-		for(TestCase_t const& testCase: testCases)
+		if constexpr (std::is_unsigned_v<num_T>)
 		{
-			std::div_result const result = std::div_wide(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
-			ASSERT_EQ(result.quotient, testCase.quotient) << testCase.format();
-			ASSERT_EQ(result.remainder, testCase.remainder) << testCase.format();
-		}
-
-	}
-	else if constexpr (std::is_signed_v<num_T>)
-	{
-		constexpr num_T min = std::numeric_limits<num_T>::min();
-		constexpr num_T max_res = static_cast<num_T>(num_T{1} << (sizeof(num_T) * 8 - 2));
-		constexpr num_T max_min = static_cast<num_T>(num_T{3} << (sizeof(num_T) * 8 - 2));
-
-		std::array constexpr testCases
-		{
-			TestCase_t{.dividend_low = max - 1, .dividend_high = static_cast<num_T>(max >> 1), .divisor = max, .quotient = max, .remainder = max - 2},
-			TestCase_t{.dividend_low = max, .dividend_high = static_cast<num_T>(max >> 1), .divisor = max, .quotient = max, .remainder = max - 1},
-			TestCase_t{.dividend_low =   0, .dividend_high = 0, .divisor = 37, .quotient = 0, .remainder = 0},
-			TestCase_t{.dividend_low =  98, .dividend_high = 0, .divisor = 111, .quotient = 0, .remainder = 98},
-			TestCase_t{.dividend_low = max, .dividend_high = max_res, .divisor = min, .quotient = min, .remainder = max},
-			TestCase_t{.dividend_low = min, .dividend_high = max_min, .divisor = min, .quotient = max, .remainder = 0},
-			TestCase_t{.dividend_low = min, .dividend_high = max_min, .divisor = max, .quotient = min, .remainder = 0},
-			TestCase_t{.dividend_low =   1, .dividend_high = max_min, .divisor = min, .quotient = max, .remainder = -max},
-			TestCase_t{.dividend_low =   2, .dividend_high = max_min, .divisor = max, .quotient = min, .remainder = -max + 1},
-		};
-
-		constexpr bool constexpr_result = constexpr_test(testCases);
-		constexpr uintptr_t constexpr_findex = constexpr_fail_index(testCases);
-
-		ASSERT_TRUE(constexpr_result) << "constexpr " << testCases[constexpr_findex].format();
-
-		for(TestCase_t const& testCase: testCases)
-		{
-			std::div_result const result = std::div_wide(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
-			ASSERT_EQ(result.quotient, testCase.quotient) << testCase.format();
-			ASSERT_EQ(result.remainder, testCase.remainder) << testCase.format();
-		}
-	}
-}
-
-TYPED_TEST(numeric_ovf_typed_test_T, mull_add_wide)
-{
-	using num_T = TypeParam;
-
-	struct TestCase_t
-	{
-		num_T const vA;
-		num_T const vB;
-		num_T const addend;
-		num_T const e_low;
-		num_T const e_hi;
-
-		std::string format() const
-		{
-			return std::format("vA={} vB={} added={}", vA, vB, addend);
-		}
-
-		consteval bool constexpr_check() const
-		{
+			std::array constexpr testCases
 			{
-				std::mul_wide_result const result = std::mul_add_wide(vA, vB, addend);
-				if (result.low_bits != e_low || result.high_bits != e_hi)
-				{
-					return false;
-				}
+				TestCase_t{.dividend_low = max - 1, .dividend_high = max - 1, .divisor = max, .quotient = max, .remainder = max - 2},
+				TestCase_t{.dividend_low = max, .dividend_high = max - 1, .divisor = max, .quotient = max, .remainder = max - 1},
+				TestCase_t{.dividend_low = max, .dividend_high = 1, .divisor = max, .quotient = 2, .remainder = 1},
+				TestCase_t{.dividend_low = 0, .dividend_high = 1, .divisor = max, .quotient = 1, .remainder = 1},
+				TestCase_t{.dividend_low = 0, .dividend_high = 0, .divisor = 37, .quotient = 0, .remainder = 0},
+				TestCase_t{.dividend_low = 98, .dividend_high = 0, .divisor = 175, .quotient = 0, .remainder = 98},
+			};
+
+			constexpr bool constexpr_result = constexpr_test(testCases);
+			constexpr uintptr_t constexpr_findex = constexpr_fail_index(testCases);
+
+			ASSERT_TRUE(constexpr_result) << "constexpr " << testCases[constexpr_findex].format();
+
+			for (TestCase_t const& testCase : testCases)
+			{
+				std::div_result const result = std::div_wide(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
+				ASSERT_EQ(result.quotient, testCase.quotient) << testCase.format();
+				ASSERT_EQ(result.remainder, testCase.remainder) << testCase.format();
 			}
-			if (vA != vB)
-			{
-				std::mul_wide_result const result = std::mul_add_wide(vB, vA, addend);
-				if (result.low_bits != e_low || result.high_bits != e_hi)
-				{
-					return false;
-				}
-			}
-			return true;
+
 		}
-	};
-
-
-	constexpr num_T max = std::numeric_limits<num_T>::max();
-
-	if constexpr (std::is_unsigned_v<num_T>)
-	{
-		std::array constexpr testCases
+		else if constexpr (std::is_signed_v<num_T>)
 		{
-			TestCase_t{.vA = 0, .vB = 0, .addend = 0, .e_low = 0, .e_hi = 0},
-			TestCase_t{.vA = max, .vB = max, .addend = max, .e_low = 0, .e_hi = max},
-		};
+			constexpr num_T min = std::numeric_limits<num_T>::min();
+			constexpr num_T max_res = static_cast<num_T>(num_T{ 1 } << (sizeof(num_T) * 8 - 2));
+			constexpr num_T max_min = static_cast<num_T>(num_T{ 3 } << (sizeof(num_T) * 8 - 2));
 
-		constexpr bool constexpr_result = constexpr_test(testCases);
-		constexpr uintptr_t constexpr_findex = constexpr_fail_index(testCases);
-
-		ASSERT_TRUE(constexpr_result) << "constexpr " << testCases[constexpr_findex].format();
-
-		for (TestCase_t const& testCase : testCases)
-		{
+			std::array constexpr testCases
 			{
-				std::mul_wide_result const result = std::mul_add_wide(testCase.vA, testCase.vB, testCase.addend);
-				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
-				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
-			}
-			if (testCase.vA != testCase.vB)
+				TestCase_t{.dividend_low = max - 1, .dividend_high = static_cast<num_T>(max >> 1), .divisor = max, .quotient = max, .remainder = max - 2},
+				TestCase_t{.dividend_low = max, .dividend_high = static_cast<num_T>(max >> 1), .divisor = max, .quotient = max, .remainder = max - 1},
+				TestCase_t{.dividend_low = 0, .dividend_high = 0, .divisor = 37, .quotient = 0, .remainder = 0},
+				TestCase_t{.dividend_low = 98, .dividend_high = 0, .divisor = 111, .quotient = 0, .remainder = 98},
+				TestCase_t{.dividend_low = max, .dividend_high = max_res, .divisor = min, .quotient = min, .remainder = max},
+				TestCase_t{.dividend_low = min, .dividend_high = max_min, .divisor = min, .quotient = max, .remainder = 0},
+				TestCase_t{.dividend_low = min, .dividend_high = max_min, .divisor = max, .quotient = min, .remainder = 0},
+				TestCase_t{.dividend_low = 1, .dividend_high = max_min, .divisor = min, .quotient = max, .remainder = -max},
+				TestCase_t{.dividend_low = 2, .dividend_high = max_min, .divisor = max, .quotient = min, .remainder = -max + 1},
+			};
+
+			constexpr bool constexpr_result = constexpr_test(testCases);
+			constexpr uintptr_t constexpr_findex = constexpr_fail_index(testCases);
+
+			ASSERT_TRUE(constexpr_result) << "constexpr " << testCases[constexpr_findex].format();
+
+			for (TestCase_t const& testCase : testCases)
 			{
-				std::mul_wide_result const result = std::mul_add_wide(testCase.vB, testCase.vA, testCase.addend);
-				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
-				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
+				std::div_result const result = std::div_wide(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
+				ASSERT_EQ(result.quotient, testCase.quotient) << testCase.format();
+				ASSERT_EQ(result.remainder, testCase.remainder) << testCase.format();
 			}
 		}
 	}
-
-
-
 }

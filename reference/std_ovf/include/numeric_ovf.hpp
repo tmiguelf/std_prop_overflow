@@ -462,297 +462,138 @@ namespace std
 		}
 	};
 
-	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	FORCE_INLINE constexpr bool is_div_defined([[maybe_unused]] T const dividend, T const divisor) noexcept
-	{
-		if constexpr(std::is_signed_v<T>)
-		{
-			return divisor != 0 && (dividend != std::numeric_limits<T>::min() || divisor != -1);
-		}
-		else
-		{
-			return divisor != 0;
-		}
-	}
-
-	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	constexpr bool is_div_wide_defined(T dividend_high, [[maybe_unused]] T dividend_low, T divisor) noexcept
-	{
-		if constexpr(std::is_signed_v<T>)
-		{
-			using uint_t = std::make_unsigned_t<T>;
-			constexpr uintptr_t sign_offset = (sizeof(uint_t) * 8) - 1;
-			constexpr uint_t lower_mask = static_cast<uint_t>(~(uint_t{1} << sign_offset));
-
-			uint_t const hi  = std::bit_cast<uint_t>(dividend_high);
-			uint_t const low = std::bit_cast<uint_t>(dividend_low);
-
-			uint_t const div = std::bit_cast<uint_t>(divisor);
-			uint_t const hi_flag = static_cast<uint_t>((hi << 1) | (low >> sign_offset));
-
-			if(dividend_high < 0)
-			{
-				if(divisor < 0)
-				{
-					return
-						(hi_flag > div) ||
-						((hi_flag == div) &&
-							(low & lower_mask));
-				}
-				else
-				{
-					uint_t const mirror = ~div;
-
-					return
-						(hi_flag > mirror) ||
-						((hi_flag == mirror) &&
-							((low & lower_mask) > ((mirror & lower_mask) + 1)));
-				}
-			}
-			else
-			{
-				if(divisor < 0)
-				{
-					uint_t const mirror = (~div) + 1;
-
-					return
-						(hi_flag < mirror) ||
-						((hi_flag == mirror) &&
-							((low & lower_mask) < mirror));
-				}
-				else
-				{
-					return hi_flag < div;
-				}
-			}
-		}
-		else
-		{
-			return dividend_high < divisor;
-		}
-	}
-
-	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
+	template<class T> requires ( __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value && std::is_unsigned_v<T> )
 	FORCE_INLINE constexpr div_result<T> div_wide(T dividend_high, T dividend_low, T divisor) noexcept
 	{
-		if(std::is_constant_evaluated())
+		if (std::is_constant_evaluated())
 		{
-			if(!is_div_wide_defined(dividend_high, dividend_low, divisor))
+			if(dividend_high > divisor)
 			{
 				__OVERFLOW__PRIVATE__::invalid_domain_error();
 			}
 		}
 
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
-		if constexpr ( std::is_unsigned_v<T> )
-		{
+
 #if defined(__PORTABLE_ARCH_AMD64__)
 #	if ( defined (__GNUG__) || defined(__GNUC__) )
-			if(!std::is_constant_evaluated() && (sizeof(T) != sizeof(uint8_t)))
-			{
-				__asm__
-				(
-					"div %[d];"
-					: "+a"(dividend_low), "+d"(dividend_high)
-					: [d]"r"(divisor)
-				);
-
-				return {.quotient = dividend_low, .remainder = dividend_high};
-			}
-			else
-#	elif defined(_WIN32)
-			if(!std::is_constant_evaluated() && sizeof(T) == sizeof(uint64_t))
-			{
-				uint64_t rem;
-				uint64_t const quo =
-					_udiv128(
-						static_cast<uint64_t>(dividend_high), static_cast<uint64_t>(dividend_low),
-						static_cast<uint64_t>(divisor), &rem
-					);
-				return {.quotient = static_cast<T>(quo), .remainder = static_cast<T>(rem)};
-			}
-			else
-#	endif
-#endif
-			{
-				if constexpr (sizeof(T) == sizeof(uint64_t))
-				{
-					if(dividend_high >= divisor)
-					{
-						return {.quotient = 0, .remainder = 0};
-					}
-
-					T result = 0;
-
-					if(dividend_high)
-					{
-						auto d_pad = std::countl_zero(divisor);
-
-						if(std::popcount(divisor) == 1)
-						{
-							++d_pad;
-							constexpr T rem_mask = 0xFFFFFFFFFFFFFFFF;
-
-							return {.quotient = (dividend_high << d_pad) | (dividend_low >> (64 - d_pad)),
-								.remainder = dividend_low & (rem_mask >> d_pad)};
-						}
-
-						if(d_pad < 16)
-						{
-							T const estimator = static_cast<T>(divisor >> 32) + 1;
-
-							do
-							{
-								auto const dhi_pad = std::countl_zero(dividend_high);
-								T estimate = (dhi_pad ? ((dividend_high << dhi_pad) | (dividend_low >> (64 - dhi_pad))) : dividend_high) / estimator;
-								if(dhi_pad < 32)
-								{
-									estimate <<= (32 - dhi_pad);
-								}
-								else
-								{
-									estimate >>= (dhi_pad - 32);
-								}
-
-								result += estimate;
-
-								mul_wide_result const res = mul_wide(divisor, estimate);
-
-								{
-									sub_borrow_result sub_res = sub_borrow(dividend_low, res.low_bits, false);
-									dividend_low = sub_res.low_bits;
-									sub_res = sub_borrow(dividend_high, res.high_bits, sub_res.overflow);
-									dividend_high = sub_res.low_bits;
-								}
-							}
-							while(dividend_high);
-						}
-						else
-						{
-							do
-							{
-								auto const dhi_pad = std::countl_zero(dividend_high);
-								T estimate = ((dividend_high << dhi_pad) | (dividend_low >> (64 - dhi_pad))) / divisor;
-								estimate <<= (64 - dhi_pad);
-								result += estimate;
-
-								mul_wide_result const res = mul_wide(divisor, estimate);
-
-								{
-									sub_borrow_result sub_res = sub_borrow(dividend_low, res.low_bits, false);
-									dividend_low = sub_res.low_bits;
-									sub_res = sub_borrow(dividend_high, res.high_bits, sub_res.overflow);
-									dividend_high = sub_res.low_bits;
-								}
-							}
-							while(dividend_high);
-						}
-					}
-
-					{
-						result += dividend_low / divisor;
-						dividend_low %= divisor;
-					}
-
-					return {.quotient = result, .remainder = dividend_low};
-				}
-				else
-				{
-					using over_uint_t = __OVERFLOW__PRIVATE__::int_clobber_type<sizeof(int_t) * 2, false>::type;
-					constexpr uint8_t offset = (sizeof(int_t) * 8);
-					over_uint_t const dividend = static_cast<over_uint_t>((static_cast<over_uint_t>(dividend_high) << offset) | static_cast<over_uint_t>(dividend_low));
-					return {.quotient = static_cast<T>(dividend / divisor), .remainder = static_cast<T>(dividend % divisor)};
-				}
-			}
-		}
-		else if constexpr ( std::is_signed_v<T> )
+		if(!std::is_constant_evaluated() && (sizeof(T) != sizeof(uint8_t)))
 		{
-#if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
-			if(!std::is_constant_evaluated() && (sizeof(T) != sizeof(int8_t)))
-			{
-				__asm__
-				(
-					"idiv %[d];"
-					: "+a"(dividend_low), "+d"(dividend_high)
-					: [d]"r"(divisor)
-				);
+			__asm__
+			(
+				"div %[d];"
+				: "+a"(dividend_low), "+d"(dividend_high)
+				: [d]"r"(divisor)
+			);
 
-				return {.quotient = dividend_low, .remainder = dividend_high};
-			}
-			else
+			return {.quotient = dividend_low, .remainder = dividend_high};
+		}
+		else
 #	elif defined(_WIN32)
-			if(!std::is_constant_evaluated() && sizeof(T) == sizeof(int64_t))
-			{
-				int64_t rem;
-				int64_t const quo =
-					_div128(
-						static_cast<int64_t>(dividend_high), static_cast<int64_t>(dividend_low),
-						static_cast<int64_t>(divisor), &rem
-					);
-				return {.quotient = static_cast<T>(quo), .remainder = static_cast<T>(rem)};
-			}
-			else
+		if(!std::is_constant_evaluated() && sizeof(T) == sizeof(uint64_t))
+		{
+			uint64_t rem;
+			uint64_t const quo =
+				_udiv128(
+					static_cast<uint64_t>(dividend_high), static_cast<uint64_t>(dividend_low),
+					static_cast<uint64_t>(divisor), &rem
+				);
+			return {.quotient = static_cast<T>(quo), .remainder = static_cast<T>(rem)};
+		}
+		else
 #	endif
 #endif
+		{
+			if constexpr (sizeof(T) == sizeof(uint64_t))
 			{
-				if constexpr (sizeof(T) == sizeof(int64_t))
+				if(dividend_high >= divisor)
 				{
-					bool swap = false;
-					bool rem_negative = false;
-					uint64_t tdivisor = static_cast<uint64_t>(divisor);
-					uint64_t tdiv_hi = static_cast<uint64_t>(dividend_high);
-					uint64_t tdiv_lo = static_cast<uint64_t>(dividend_low);
+					return {.quotient = 0, .remainder = 0};
+				}
 
-					if(divisor < 0)
+				T result = 0;
+
+				if(dividend_high)
+				{
+					auto d_pad = std::countl_zero(divisor);
+
+					if(std::popcount(divisor) == 1)
 					{
-						swap = true;
-						tdivisor = ~tdivisor + 1;
+						++d_pad;
+						constexpr T rem_mask = 0xFFFFFFFFFFFFFFFF;
+
+						return {.quotient = (dividend_high << d_pad) | (dividend_low >> (64 - d_pad)),
+							.remainder = dividend_low & (rem_mask >> d_pad)};
 					}
-					if(dividend_high < 0)
+
+					if(d_pad < 16)
 					{
-						swap = !swap;
-						rem_negative = true;
-						tdiv_lo = ~tdiv_lo + 1;
-						tdiv_hi = ~tdiv_hi;
-						if(tdiv_lo == 0)
+						T const estimator = static_cast<T>(divisor >> 32) + 1;
+
+						do
 						{
-							tdiv_hi +=1;
+							auto const dhi_pad = std::countl_zero(dividend_high);
+							T estimate = (dhi_pad ? ((dividend_high << dhi_pad) | (dividend_low >> (64 - dhi_pad))) : dividend_high) / estimator;
+							if(dhi_pad < 32)
+							{
+								estimate <<= (32 - dhi_pad);
+							}
+							else
+							{
+								estimate >>= (dhi_pad - 32);
+							}
+
+							result += estimate;
+
+							mul_wide_result const res = mul_wide(divisor, estimate);
+
+							{
+								sub_borrow_result sub_res = sub_borrow(dividend_low, res.low_bits, false);
+								dividend_low = sub_res.low_bits;
+								sub_res = sub_borrow(dividend_high, res.high_bits, sub_res.overflow);
+								dividend_high = sub_res.low_bits;
+							}
 						}
+						while(dividend_high);
 					}
-
-					std::div_result<uint64_t> const tempRes = std::div_wide<uint64_t>(tdiv_hi, tdiv_lo, tdivisor);
-
-					if(tempRes.quotient == 0x8000000000000000)
+					else
 					{
-						return
+						do
 						{
-							.quotient  = static_cast<T>(tempRes.quotient),
-							.remainder = rem_negative ? -static_cast<T>(tempRes.remainder) : static_cast<T>(tempRes.remainder)
-						};
+							auto const dhi_pad = std::countl_zero(dividend_high);
+							T estimate = ((dividend_high << dhi_pad) | (dividend_low >> (64 - dhi_pad))) / divisor;
+							estimate <<= (64 - dhi_pad);
+							result += estimate;
+
+							mul_wide_result const res = mul_wide(divisor, estimate);
+
+							{
+								sub_borrow_result sub_res = sub_borrow(dividend_low, res.low_bits, false);
+								dividend_low = sub_res.low_bits;
+								sub_res = sub_borrow(dividend_high, res.high_bits, sub_res.overflow);
+								dividend_high = sub_res.low_bits;
+							}
+						}
+						while(dividend_high);
 					}
-
-					return
-					{
-						.quotient  = swap         ? -static_cast<T>(tempRes.quotient)  : static_cast<T>(tempRes.quotient),
-						.remainder = rem_negative ? -static_cast<T>(tempRes.remainder) : static_cast<T>(tempRes.remainder)
-					};
 				}
-				else
+
 				{
-					using clober_uint_t = __OVERFLOW__PRIVATE__::int_clobber_type<sizeof(int_t), false>::type;
-					using over_sint_t = __OVERFLOW__PRIVATE__::int_clobber_type<sizeof(int_t) * 2, true>::type;
-					constexpr uint8_t offset = (sizeof(int_t) * 8);
-
-					over_sint_t const dividend = static_cast<over_sint_t>((static_cast<over_sint_t>(dividend_high) << offset) 
-						| static_cast<over_sint_t>(static_cast<clober_uint_t>(dividend_low)));
-
-					return {.quotient = static_cast<T>(dividend / divisor), .remainder = static_cast<T>(dividend % divisor)};
+					result += dividend_low / divisor;
+					dividend_low %= divisor;
 				}
+
+				return {.quotient = result, .remainder = dividend_low};
+			}
+			else
+			{
+				using over_uint_t = __OVERFLOW__PRIVATE__::int_clobber_type<sizeof(int_t) * 2, false>::type;
+				constexpr uint8_t offset = (sizeof(int_t) * 8);
+				over_uint_t const dividend = static_cast<over_uint_t>((static_cast<over_uint_t>(dividend_high) << offset) | static_cast<over_uint_t>(dividend_low));
+				return {.quotient = static_cast<T>(dividend / divisor), .remainder = static_cast<T>(dividend % divisor)};
 			}
 		}
-
-	};
+	}
 
 } //namespace std
 

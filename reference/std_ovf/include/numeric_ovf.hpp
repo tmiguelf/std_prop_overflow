@@ -82,17 +82,17 @@ namespace std
 	} //namespace __OVERFLOW__PRIVATE__
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	struct add_carry_result
+	struct carrying_add_result
 	{
 		T low_bits;
 		bool overflow;
 	};
 
 	template<class T>
-	using sub_borrow_result = add_carry_result<T>;
+	using borrowing_sub_result = carrying_add_result<T>;
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	struct mul_wide_result {
+	struct widening_mul_result {
 		T low_bits;
 		T high_bits;
 	};
@@ -105,7 +105,7 @@ namespace std
 
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	FORCE_INLINE constexpr add_carry_result<T> add_carry(T vA, T const vB, bool carry) noexcept
+	FORCE_INLINE constexpr carrying_add_result<T> carrying_add(T vA, T const vB, bool carry) noexcept
 	{
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 		if constexpr (std::is_unsigned_v<T>)
@@ -218,7 +218,7 @@ namespace std
 	}
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	FORCE_INLINE constexpr sub_borrow_result<T> sub_borrow(T vA, T const vB, bool borrow) noexcept
+	FORCE_INLINE constexpr borrowing_sub_result<T> borrowing_sub(T vA, T const vB, bool borrow) noexcept
 	{
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 		if constexpr (std::is_unsigned_v<T>)
@@ -331,7 +331,7 @@ namespace std
 	}
 
 	template<class T> requires __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value
-	FORCE_INLINE constexpr mul_wide_result<T> mul_wide(T vA, T const vB) noexcept
+	FORCE_INLINE constexpr widening_mul_result<T> widening_mul(T vA, T const vB) noexcept
 	{
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 		if constexpr ( std::is_unsigned_v<T> )
@@ -374,7 +374,7 @@ namespace std
 					uint64_t const Bl = static_cast<uint64_t>(vB) & low_mask;
 					uint64_t const Bh = static_cast<uint64_t>(vB) >> 32;
 
-					add_carry_result<uint64_t> const addc_result = add_carry<uint64_t>( Al * Bh + ((Al * Bl) >> 32), Ah * Bl, 0);
+					carrying_add_result<uint64_t> const addc_result = carrying_add<uint64_t>( Al * Bh + ((Al * Bl) >> 32), Ah * Bl, 0);
 
 					return
 					{
@@ -437,7 +437,7 @@ namespace std
 					uint64_t const Bl = tB & low_mask;
 					uint64_t const Bh = tB >> 32;
 
-					add_carry_result<uint64_t> const addc_result = add_carry<uint64_t>( Al * Bh + ((Al * Bl) >> 32), Ah * Bl, 0);
+					carrying_add_result<uint64_t> const addc_result = carrying_add<uint64_t>( Al * Bh + ((Al * Bl) >> 32), Ah * Bl, 0);
 					uint64_t high_bits = static_cast<T>((Ah * Bh) + (addc_result.low_bits >> 32) + (addc_result.overflow ? 0x100000000 : 0));
 
 					if(sign_mask & tA)
@@ -463,7 +463,7 @@ namespace std
 	};
 
 	template<class T> requires ( __OVERFLOW__PRIVATE__::_ovf_suypported<T>::value && std::is_unsigned_v<T> )
-	FORCE_INLINE constexpr div_result<T> div_wide(T dividend_high, T dividend_low, T divisor) noexcept
+	FORCE_INLINE constexpr div_result<T> narrowing_div(T dividend_high, T dividend_low, T divisor) noexcept
 	{
 		if (std::is_constant_evaluated())
 		{
@@ -545,12 +545,12 @@ namespace std
 
 							result += estimate;
 
-							mul_wide_result const res = mul_wide(divisor, estimate);
+							widening_mul_result const res = widening_mul(divisor, estimate);
 
 							{
-								sub_borrow_result sub_res = sub_borrow(dividend_low, res.low_bits, false);
+								borrowing_sub_result sub_res = borrowing_sub(dividend_low, res.low_bits, false);
 								dividend_low = sub_res.low_bits;
-								sub_res = sub_borrow(dividend_high, res.high_bits, sub_res.overflow);
+								sub_res = borrowing_sub(dividend_high, res.high_bits, sub_res.overflow);
 								dividend_high = sub_res.low_bits;
 							}
 						}
@@ -565,12 +565,12 @@ namespace std
 							estimate <<= (64 - dhi_pad);
 							result += estimate;
 
-							mul_wide_result const res = mul_wide(divisor, estimate);
+							widening_mul_result const res = widening_mul(divisor, estimate);
 
 							{
-								sub_borrow_result sub_res = sub_borrow(dividend_low, res.low_bits, false);
+								borrowing_sub_result sub_res = borrowing_sub(dividend_low, res.low_bits, false);
 								dividend_low = sub_res.low_bits;
-								sub_res = sub_borrow(dividend_high, res.high_bits, sub_res.overflow);
+								sub_res = borrowing_sub(dividend_high, res.high_bits, sub_res.overflow);
 								dividend_high = sub_res.low_bits;
 							}
 						}

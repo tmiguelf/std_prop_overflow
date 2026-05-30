@@ -86,7 +86,7 @@ consteval bool constexpr_test(std::array<TCase, Size> const& testCases)
 
 TYPED_TEST_SUITE(numeric_ovf_typed_test_T, supported_types);
 
-TYPED_TEST(numeric_ovf_typed_test_T, add_carry)
+TYPED_TEST(numeric_ovf_typed_test_T, carrying_add)
 {
 	using num_T = TypeParam;
 
@@ -107,7 +107,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, add_carry)
 
 			num_T const expected = static_cast<num_T>(std::bit_cast<uint_clober_t>(vA) + std::bit_cast<uint_clober_t>(vB) + static_cast<uint_clober_t>(carry));
 			{
-				std::add_carry_result const result = std::add_carry(vA, vB, carry);
+				std::carrying_add_result const result = std::carrying_add(vA, vB, carry);
 				if(result.low_bits != expected || result.overflow != overflow)
 				{
 					return false;
@@ -115,7 +115,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, add_carry)
 			}
 			if(vA != vB)
 			{
-				std::add_carry_result const result = std::add_carry(vB, vA, carry);
+				std::carrying_add_result const result = std::carrying_add(vB, vA, carry);
 				if(result.low_bits != expected || result.overflow != overflow)
 				{
 					return false;
@@ -167,13 +167,13 @@ TYPED_TEST(numeric_ovf_typed_test_T, add_carry)
 		{
 			num_T const expected = static_cast<num_T>(testCase.vA + testCase.vB + static_cast<num_T>(testCase.carry));
 			{
-				std::add_carry_result const result = std::add_carry(testCase.vA, testCase.vB, testCase.carry);
+				std::carrying_add_result const result = std::carrying_add(testCase.vA, testCase.vB, testCase.carry);
 				ASSERT_EQ(result.low_bits, expected) << testCase.format();
 				ASSERT_EQ(result.overflow, testCase.overflow) << testCase.format();
 			}
 			if(testCase.vA != testCase.vB)
 			{
-				std::add_carry_result const result = std::add_carry(testCase.vB, testCase.vA, testCase.carry);
+				std::carrying_add_result const result = std::carrying_add(testCase.vB, testCase.vA, testCase.carry);
 				ASSERT_EQ(result.low_bits, expected) << "reversed " << testCase.format();
 				ASSERT_EQ(result.overflow, testCase.overflow) << "reversed " << testCase.format();
 			}
@@ -218,13 +218,13 @@ TYPED_TEST(numeric_ovf_typed_test_T, add_carry)
 		{
 			num_T const expected = static_cast<num_T>(testCase.vA + testCase.vB + static_cast<num_T>(testCase.carry));
 			{
-				std::add_carry_result const result = std::add_carry(testCase.vA, testCase.vB, testCase.carry);
+				std::carrying_add_result const result = std::carrying_add(testCase.vA, testCase.vB, testCase.carry);
 				ASSERT_EQ(result.low_bits, expected) << testCase.format();
 				ASSERT_EQ(result.overflow, testCase.overflow) << testCase.format();
 			}
 			if(testCase.vA != testCase.vB)
 			{
-				std::add_carry_result const result = std::add_carry(testCase.vB, testCase.vA, testCase.carry);
+				std::carrying_add_result const result = std::carrying_add(testCase.vB, testCase.vA, testCase.carry);
 				ASSERT_EQ(result.low_bits, expected) << "reversed " << testCase.format();
 				ASSERT_EQ(result.overflow, testCase.overflow) << "reversed " << testCase.format();
 			}
@@ -233,7 +233,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, add_carry)
 
 }
 
-TYPED_TEST(numeric_ovf_typed_test_T, sub_borrow)
+TYPED_TEST(numeric_ovf_typed_test_T, borrowing_sub)
 {
 	using num_T = TypeParam;
 
@@ -253,7 +253,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, sub_borrow)
 			using uint_clober_t = __OVERFLOW_TEST_PRIVATE__::uint_clobber_t<num_T>;
 
 			num_T const expected = static_cast<num_T>(std::bit_cast<uint_clober_t>(vA) - std::bit_cast<uint_clober_t>(vB) - static_cast<uint_clober_t>(borrow));
-			std::add_carry_result const result = std::sub_borrow(vA, vB, borrow);
+			std::carrying_add_result const result = std::borrowing_sub(vA, vB, borrow);
 			return (result.low_bits == expected) && (result.overflow == overflow);
 		}
 	};
@@ -304,7 +304,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, sub_borrow)
 		{
 			num_T const expected = static_cast<num_T>(testCase.vA - testCase.vB - static_cast<num_T>(testCase.borrow));
 			{
-				std::add_carry_result const result = std::sub_borrow(testCase.vA, testCase.vB, testCase.borrow);
+				std::carrying_add_result const result = std::borrowing_sub(testCase.vA, testCase.vB, testCase.borrow);
 				ASSERT_EQ(result.low_bits, expected) << testCase.format();
 				ASSERT_EQ(result.overflow, testCase.overflow) << testCase.format();
 			}
@@ -377,7 +377,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, sub_borrow)
 		{
 			num_T const expected = static_cast<num_T>(testCase.vA - testCase.vB - static_cast<num_T>(testCase.borrow));
 			{
-				std::add_carry_result const result = std::sub_borrow(testCase.vA, testCase.vB, testCase.borrow);
+				std::carrying_add_result const result = std::borrowing_sub(testCase.vA, testCase.vB, testCase.borrow);
 				ASSERT_EQ(result.low_bits, expected) << testCase.format();
 				ASSERT_EQ(result.overflow, testCase.overflow) << testCase.format();
 			}
@@ -386,7 +386,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, sub_borrow)
 }
 
 
-TYPED_TEST(numeric_ovf_typed_test_T, mul_wide)
+TYPED_TEST(numeric_ovf_typed_test_T, widening_mul)
 {
 	using num_T = TypeParam;
 
@@ -405,7 +405,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, mul_wide)
 		consteval bool constexpr_check() const
 		{
 			{
-				std::mul_wide_result const result = std::mul_wide(vA, vB);
+				std::widening_mul_result const result = std::widening_mul(vA, vB);
 				if(result.low_bits != e_low || result.high_bits != e_hi)
 				{
 					return false;
@@ -413,7 +413,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, mul_wide)
 			}
 			if(vA != vB)
 			{
-				std::mul_wide_result const result = std::mul_wide(vB, vA);
+				std::widening_mul_result const result = std::widening_mul(vB, vA);
 				if(result.low_bits != e_low || result.high_bits != e_hi)
 				{
 					return false;
@@ -445,13 +445,13 @@ TYPED_TEST(numeric_ovf_typed_test_T, mul_wide)
 		for(TestCase_t const& testCase: testCases)
 		{
 			{
-				std::mul_wide_result const result = std::mul_wide(testCase.vA, testCase.vB);
+				std::widening_mul_result const result = std::widening_mul(testCase.vA, testCase.vB);
 				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
 				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
 			}
 			if(testCase.vA != testCase.vB)
 			{
-				std::mul_wide_result const result = std::mul_wide(testCase.vB, testCase.vA);
+				std::widening_mul_result const result = std::widening_mul(testCase.vB, testCase.vA);
 				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
 				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
 			}
@@ -484,13 +484,13 @@ TYPED_TEST(numeric_ovf_typed_test_T, mul_wide)
 		for(TestCase_t const& testCase: testCases)
 		{
 			{
-				std::mul_wide_result const result = std::mul_wide(testCase.vA, testCase.vB);
+				std::widening_mul_result const result = std::widening_mul(testCase.vA, testCase.vB);
 				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
 				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
 			}
 			if(testCase.vA != testCase.vB)
 			{
-				std::mul_wide_result const result = std::mul_wide(testCase.vB, testCase.vA);
+				std::widening_mul_result const result = std::widening_mul(testCase.vB, testCase.vA);
 				ASSERT_EQ(result.low_bits, testCase.e_low) << testCase.format();
 				ASSERT_EQ(result.high_bits, testCase.e_hi) << testCase.format();
 			}
@@ -499,7 +499,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, mul_wide)
 
 }
 
-TYPED_TEST(numeric_ovf_typed_test_T, div_wide)
+TYPED_TEST(numeric_ovf_typed_test_T, narrowing_div)
 {
 	using num_T = TypeParam;
 
@@ -521,7 +521,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, div_wide)
 
 			consteval bool constexpr_check() const
 			{
-				std::div_result const result = std::div_wide(dividend_high, dividend_low, divisor);
+				std::div_result const result = std::narrowing_div(dividend_high, dividend_low, divisor);
 				return (result.quotient == quotient) && (result.remainder == remainder);
 			}
 		};
@@ -547,7 +547,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, div_wide)
 
 			for (TestCase_t const& testCase : testCases)
 			{
-				std::div_result const result = std::div_wide(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
+				std::div_result const result = std::narrowing_div(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
 				ASSERT_EQ(result.quotient, testCase.quotient) << testCase.format();
 				ASSERT_EQ(result.remainder, testCase.remainder) << testCase.format();
 			}
@@ -579,7 +579,7 @@ TYPED_TEST(numeric_ovf_typed_test_T, div_wide)
 
 			for (TestCase_t const& testCase : testCases)
 			{
-				std::div_result const result = std::div_wide(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
+				std::div_result const result = std::narrowing_div(testCase.dividend_high, testCase.dividend_low, testCase.divisor);
 				ASSERT_EQ(result.quotient, testCase.quotient) << testCase.format();
 				ASSERT_EQ(result.remainder, testCase.remainder) << testCase.format();
 			}

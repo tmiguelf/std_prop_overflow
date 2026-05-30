@@ -4,7 +4,7 @@
 	<head>
 		<meta charset="UTF-8" />
 		<base href="" />
-		<title>P3161R5 - Unified integer overflow arithmetic</title>
+		<title>P3161R6 - Unified integer overflow arithmetic</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<style>
 			body{tab-size: 4;}
@@ -25,7 +25,7 @@
 	<body>
 		<h1>Unified integer overflow arithmetic</h1>
 		<table class="info">
-			<tr><td>Document Number:</td><td>P3161R5</td></tr>
+			<tr><td>Document Number:</td><td>P3161R6</td></tr>
 			<tr><td>Date:</td><td>2025/03/24</td></tr>
 			<tr><td>Reply-to:</td><td>cpp@kaotic.software</td></tr>
 			<tr><td>Authors:</td><td>Tiago Freire</td></tr>
@@ -44,19 +44,20 @@
 			<tr><td>2</td><td>Removed would_cast_modify in favor of existing in_range, added some code examples</td></tr>
 			<tr><td>3</td><td>Removed incorrect number of template parameters in wording. Added section of suggested optimizations and reference implementation.</td></tr>
 			<tr><td>4</td><td>Dropped feature test macro substitution. Updated wording to reflect latest draft. Other miscellaneous wording corrections.</td></tr>
-			<tr><td>5</td><td>Re-written paper structure. Dropped signed div_wide, is_div_wide_defined, and is_div_defined functions.</td></tr>
+			<tr><td>5</td><td>Re-written paper structure. Dropped signed div_wide, is_narrowing_div_defined, and is_div_defined functions.</td></tr>
+			<tr><td>6</td><td>Re-written paper, to accomodate <a href="#ref.P4052R0">P4052R0</a>.</td></tr>
 		</table>
 		<h2>Table of Contents</h2>
 		<p>
 			<a href="#Motivation">1. Motivation</a><br />
 			<a href="#organization">2. Logical organization</a><br />
 			<a href="#functions">3. List of functions</a><br />
-			&nbsp;&nbsp;<a href="#functions.add_carry">3.1. add_carry</a><br />
-			&nbsp;&nbsp;<a href="#functions.sub_borrow">3.2. sub_borrow</a><br />
-			&nbsp;&nbsp;<a href="#functions.mul_wide">3.3. mul_wide</a><br />
-			&nbsp;&nbsp;<a href="#functions.div_wide">3.4. div_wide</a><br />
+			&nbsp;&nbsp;<a href="#functions.carrying_add">3.1. carrying_add</a><br />
+			&nbsp;&nbsp;<a href="#functions.borrowing_sub">3.2. borrowing_sub</a><br />
+			&nbsp;&nbsp;<a href="#functions.widening_mul">3.3. widening_mul</a><br />
+			&nbsp;&nbsp;<a href="#functions.narrowing_div">3.4. narrowing_div</a><br />
 			&nbsp;&nbsp;<a href="#functions.is_div_defined">3.5. is_div_defined</a><br />
-			&nbsp;&nbsp;<a href="#functions.is_div_wide_defined">3.6. is_div_wide_defined</a><br />
+			&nbsp;&nbsp;<a href="#functions.is_narrowing_div_defined">3.6. is_narrowing_div_defined</a><br />
 			<a href="#examples">4. Examples</a><br />
 			<a href="#bad_div">5. Special considerations for division</a><br />
 			<a href="#Design">6. Design choice analysis</a><br />
@@ -116,21 +117,21 @@
 		</ul>
 		<p>The logical grouping of functions can be summarized by the following table:</p>
 		<table class="matrix">
-			<tr><th>Type of operation</th>	<th>Standard</th>		<th>Saturated</th>		<th>Safe overflow</th> <th>Wide arithmetic</th></tr>
-			<tr><td>Addition</td>			<td>+</td>				<td>add_sat</td>		<td></td> <td>add_carry</td></tr>
-			<tr><td>Subtraction</td>		<td>-</td>				<td>sub_sat</td>		<td></td> <td>sub_borrow</td></tr>
-			<tr><td>Multiplication</td>		<td>*</td>				<td>mul_sat</td>		<td></td> <td>mul_wide</td></tr>
-			<tr><td>Division, Remainder</td><td>/, %, div</td>		<td>div_sat</td>		<td>is_div_defined</td> <td>div_wide, is_div_wide_defined</td></tr>
-			<tr><td>Type casting</td>		<td>static_cast</td>	<td>saturate_cast</td>	<td>in_range</td> <td>N/A</td></tr>
+			<tr><th>Type of operation</th>	<th>Standard</th>		<th>Saturated</th>		    <th>Safe overflow</th> <th>Wide arithmetic</th></tr>
+			<tr><td>Addition</td>			<td>+</td>				<td>saturating_add</td>		<td></td> <td>carrying_add</td></tr>
+			<tr><td>Subtraction</td>		<td>-</td>				<td>saturating_sub</td>		<td></td> <td>borrowing_sub</td></tr>
+			<tr><td>Multiplication</td>		<td>*</td>				<td>saturating_mul</td>		<td></td> <td>widening_mul</td></tr>
+			<tr><td>Division, Remainder</td><td>/, %, div</td>		<td>saturating_div</td>		<td>is_div_defined</td> <td>narrowing_div, is_narrowing_div_defined</td></tr>
+			<tr><td>Type casting</td>		<td>static_cast</td>	<td>saturating_cast</td>	<td>in_range</td> <td>N/A</td></tr>
 		</table>
 
 		<h2 class="header" id="functions">3. List of functions</h2>
 
-		<h3 class="header" id="functions.add_carry">3.1. add_carry</h3>
+		<h3 class="header" id="functions.carrying_add">3.1. carrying_add</h3>
 		<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr add_carry_result&lt;T&gt; add_carry(T, T, bool carry) noexcept;
+constexpr carrying_add_result&lt;T&gt; carrying_add(T, T, bool carry) noexcept;
 </pre>
 		<h4>CPU support</h4>
 		<table class="matrix">
@@ -139,7 +140,7 @@ constexpr add_carry_result&lt;T&gt; add_carry(T, T, bool carry) noexcept;
 		</table>
 		<h4>Non-portable precedent</h4>
 		<table class="matrix">
-			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th></tr>
+			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th> <th>Rust</th> </tr>
 			<tr>
 				<td>__builtin_addcb, __builtin_addcs,<br/>
 					__builtin_addc, __builtin_addcl,<br/>
@@ -149,6 +150,7 @@ constexpr add_carry_result&lt;T&gt; add_carry(T, T, bool carry) noexcept;
 				<td>_addcarry_u8, _addcarry_u16,<br/>
 					_addcarry_u32, _addcarry_u64,<br/>
 					_addcarryx_u32, _addcarryx_u64</td>
+				<td>carrying_add</td>
 			</tr>
 		</table>
 		<h4>Description:</h4>
@@ -169,11 +171,11 @@ constexpr add_carry_result&lt;T&gt; add_carry(T, T, bool carry) noexcept;
 			Hint: CPU instruction can be converted to an ADD/ADDS if the carry bit can be determined at compile time to be 0.
 		</p>
 
-		<h3 class="header" id="functions.sub_borrow">3.2. sub_borrow</h3>
+		<h3 class="header" id="functions.borrowing_sub">3.2. borrowing_sub</h3>
 		<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;
+constexpr borrowing_sub_result&lt;T&gt; borrowing_sub(T minuend, T subtrahend, bool borrow) noexcept;
 </pre>
 		<h4>CPU support</h4>
 		<table class="matrix">
@@ -212,11 +214,11 @@ constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool bo
 			Hint: CPU instruction can be converted to an SUB/SUBS if the carry bit can be determined at compile time to be 0.
 		</p>
 
-		<h3 class="header" id="functions.mul_wide">3.3. mul_wide</h3>
+		<h3 class="header" id="functions.widening_mul">3.3. widening_mul</h3>
 		<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr mul_wide_result&lt;T&gt; mul_wide(T, T) noexcept;
+constexpr widening_mul_result&lt;T&gt; widening_mul(T, T) noexcept;
 </pre>
 		<h4>CPU support</h4>
 		<table class="matrix">
@@ -249,11 +251,11 @@ constexpr mul_wide_result&lt;T&gt; mul_wide(T, T) noexcept;
 			</ul>
 		</p>
 
-		<h3 class="header" id="functions.div_wide">3.4. div_wide</h3>
+		<h3 class="header" id="functions.narrowing_div">3.4. narrowing_div</h3>
 		<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T divisor) noexcept;
+constexpr div_result&lt;T&gt; narrowing_div(T dividend_high, T dividend_low, T divisor) noexcept;
 </pre>
 		<h4>CPU support</h4>
 		<table class="matrix">
@@ -270,7 +272,7 @@ constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T diviso
 				</td> <td>-</td></tr>
 		</table>
 		<h4>Description:</h4>
-		<p>The reciprocal operation to mul_wide
+		<p>The reciprocal operation to widening_mul
 			With <i>T</i> an integer input type, and inputs:<br/>
 			<ul>
 				<li>dividend_high :T</li>
@@ -289,7 +291,7 @@ constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T diviso
 			</ul>
 			Note:
 			<ul>
-				<li>If divisor is 0 or if output_quo overflows the behavior is undefined. Undefined behavior can be pre-checked with <i>!<a href="#future.is_div_wide_defined">is_div_wide_defined</a></i></li>
+				<li>If divisor is 0 or if output_quo overflows the behavior is undefined. Undefined behavior can be pre-checked with <i>!<a href="#future.is_narrowing_div_defined">is_narrowing_div_defined</a></i></li>
 				<li>result_quo is the value such that abs(result_quo) has the lowest possible value that satisfies
 					abs(dividend - divisor * result_quo) &lt; abs(divisor)
 				</li>
@@ -325,18 +327,18 @@ template&lt;typename T&gt;
 	<h4>Note:</h4>
 	<p>Given how trivial it is to write this function, this paper does not propose adding it to the standard at this time.</p>
 
-	<h3 class="header" id="functions.is_div_wide_defined">3.6. is_div_wide_defined</h3>
+	<h3 class="header" id="functions.is_narrowing_div_defined">3.6. is_narrowing_div_defined</h3>
 	<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) noexcept;
+constexpr bool is_narrowing_div_defined(T dividend_high, T dividend_low, T divisor) noexcept;
 </pre>
 	<h4>Description:</h4>
-	<p>Checks if std::div_wide is defined for the input arguments<br/>
+	<p>Checks if std::narrowing_div is defined for the input arguments<br/>
 		i.e. Checks that the divisor is not 0, and that result would not overflow
 	</p>
 	<h4>Possible implementation:</h4>
-	<p>See <a href="#future.is_div_wide_defined">Annex B.2.</a></p>
+	<p>See <a href="#future.is_narrowing_div_defined">Annex B.2.</a></p>
 
 	<h2 class="header" id="examples">4. Examples</h2>
 		<p>
@@ -369,13 +371,13 @@ SignedBigNum BigNum_same_size_Add(SignedBigNum const& v1, SignedBigNum const& v2
 	for(uintptr_t i = 0; i &lt; size; ++i)
 	{
 <b>		//unsigned add with carry
-		std::add_carry_result&lt;uint_t&gt; const temp_result = std::add_carry&lt;uint_t&gt;(v1.low_bits[i], v2.low_bits[i], overflow);</b>
+		std::carrying_add_result&lt;uint_t&gt; const temp_result = std::carrying_add&lt;uint_t&gt;(v1.low_bits[i], v2.low_bits[i], overflow);</b>
 		temp_out.low_bits[i] = temp_result.low_result;
 		overflow = temp_result.overflow;
 	}
 
 <b>	//signed add with carry
-	std::add_carry_result&lt;sint_t&gt; const temp_result = std::add_carry&lt;sint_t&gt;(v1.high_bits, v2.high_bits, overflow);</b>
+	std::carrying_add_result&lt;sint_t&gt; const temp_result = std::carrying_add&lt;sint_t&gt;(v1.high_bits, v2.high_bits, overflow);</b>
 	if(temp_result.overflow)
 	{
 		temp_out.low_bits.push_back(static_cast&lt;uint_t&gt;(temp_result.low_result));
@@ -403,8 +405,8 @@ for(uint8_t i = 1; i &lt; last_index; ++i)
 	}
 
 	//could have been simplified with fused multiply add
-<b>	auto mul_res = std::mul_wide(p_1[i], p_2);
-	auto add_res = std::add_carry(0, mul_res.low_bits, carry);</b>
+<b>	auto mul_res = std::widening_mul(p_1[i], p_2);
+	auto add_res = std::carrying_add(0, mul_res.low_bits, carry);</b>
 	if(add_res.overflow)
 	{
 		++mul_res.high_bits;
@@ -412,7 +414,7 @@ for(uint8_t i = 1; i &lt; last_index; ++i)
 
 	if(mul_res.high_bits || add_res.low_bits &gt;= fp_utils_p::max_pow_10)
 	{
-<b>		auto div_result = std::div_wide(mul_res.high_bits, add_res.low_bits, fp_utils_p::max_pow_10);</b>
+<b>		auto div_result = std::narrowing_div(mul_res.high_bits, add_res.low_bits, fp_utils_p::max_pow_10);</b>
 		carry = div_result.quotient;
 		p_1[i] = div_result.remainder;
 	}
@@ -448,7 +450,7 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 	std::div_result&lt;uint_t&gt; temp_res {.quotient = 0, .remainder = 0};
 	for(uintptr_t i = size; i--;)
 	{
-<b>		temp_res = std::div_wide(temp_res.remainder, v1.bits[i], v2);</b>
+<b>		temp_res = std::narrowing_div(temp_res.remainder, v1.bits[i], v2);</b>
 		temp_out.bits[i] = temp_res.quotient;
 	}
 
@@ -460,25 +462,25 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 		<p>
 			All functions in this paper have well defined behavior regardless of the input with the exceptions of those related to division.
 			Undefined behavior occurs when either dividing by zero or when the resulting value would overflow.<br/>
-			Functions such as the trivial division (/), std::div, and std::div_sat already expects the user to check and avoid calling the function if it would trigger undefined behavior.<br/>
+			Functions such as the trivial division (/), std::div, and std::saturating_div already expects the user to check and avoid calling the function if it would trigger undefined behavior.<br/>
 			Platforms that need to implement such function in software can decide to inflict only mild consequences upon the user.
 			But since the intention is to utilize specialized CPU instructions, and those instructions trap in these conditions, it is expected that division
 			in practice will have that behavior.<br/>
 			An unhandled trap results in a panic by the operation system which promptly ejects the application from running.<br/>
-			While most cases are trivial to check, and an average user would be able to write checks by themselves, signed div_wide on the other hand is not trivial,
+			While most cases are trivial to check, and an average user would be able to write checks by themselves, signed narrowing_div on the other hand is not trivial,
 			and I would not expect the average user to so easily be able to write it.<br/>
 			Providing such functions without the means to check for undefined behavior would be irresponsible, we wouldn't so much be providing a useful function to implement algorithms,
 			as we would be providing a function that would sporadically and ungracefully eject the user's code without much in the way a user can do to prevent it.<br/>
 			The question then poses, should the functions themselves always check the inputs before attempting the division proper?
 			The answer here is no. Many algorithms can guarantee that no undefined behavior is ever triggered by the way that they are setup without the need to check, and we would be unjustifiably penalizing such users with unneeded overhead.
 			Take for a example an algorithm that tries to reduce a multi-word unsigned number by dividing it with a divisor that is a compile time constant not equal to 0.
-			Such an algorithm would start with an std::div of the highest order word, and then feeding the remainder (which is guaranteed &lt; divisor) as the dividend_high of subsequent calls to div_wide to reduce lower order words,
+			Such an algorithm would start with an std::div of the highest order word, and then feeding the remainder (which is guaranteed &lt; divisor) as the dividend_high of subsequent calls to narrowing_div to reduce lower order words,
 			at no point in such an algorithm would it ever be possible to trigger undefined behavior (see <a href="#examples.4.3">4.3</a>).
 		</p>
 		<p>
 			While unsigned dive_wide is useful and has many examples of algorithms that require it, the signed dive_wide has not seen wide spread usage.
-			Given the limited usefullness of signed dive_wide, and that it would require a validation function (see <a href="#future.isd_dive_wide_defined">is_div_wide_defined</a>) whose current implementation is quite awkward,
-			plus some additional type confusion that would be associated with its implementation (see <a href="#type_confusion">FAQ</a>), I decided that it would be better if signed div_wide would not be part of this proposal,
+			Given the limited usefullness of signed dive_wide, and that it would require a validation function (see <a href="#future.isd_dive_wide_defined">is_narrowing_div_defined</a>) whose current implementation is quite awkward,
+			plus some additional type confusion that would be associated with its implementation (see <a href="#type_confusion">FAQ</a>), I decided that it would be better if signed narrowing_div would not be part of this proposal,
 			leaving this question for a future paper if a proper use case is found to justify it.
 		</p>
 		<h2 class="header" id="Design">6. Design choice analysis</h2>
@@ -502,7 +504,7 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 				must be integers" is much simpler in order to ensure that all intended cases are covered. A named or overloaded definition would require a disclaimer regarding which integers
 				are supported and which versions are available depending on the combination of integers available for that platform.</li>
 			<li>If you require a specific instance of the function for a specific type to be explicitly declared this cannot be easily done with overloads,
-				but can still be easily done with templates as one can just explicitly declare the exact templated type and this happens in a much more natural language e.x. mul_wide&lt;uint32_t&gt; is much more explicit than ui32_mul_wide.</li>
+				but can still be easily done with templates as one can just explicitly declare the exact templated type and this happens in a much more natural language e.x. widening_mul&lt;uint32_t&gt; is much more explicit than ui32_widening_mul.</li>
 		</ul>
 		<h3 class="header" id="Design.return">6.3. Return type</h3>
 		<p>There are several ways to return multiple output values. For the cases where there's only 1 output value, just return the value as is with no additional structure.
@@ -514,11 +516,11 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			<li>Use a tuple</li>
 		</ul>
 		<p>In my opinion it is best to stay away from using types like std::pair given their confusing ambiguity,
-			take for example "mul_wide" return a std::pair assigned to a variable named val, what would be the meaning of "val.first" or "val.second"? Do you put the high bits in ".first" or ".second"?
+			take for example "widening_mul" return a std::pair assigned to a variable named val, what would be the meaning of "val.first" or "val.second"? Do you put the high bits in ".first" or ".second"?
 			Unless the names of the member variables explicitly spell their meaning (ex. result_high and result_low) the whole thing is just hard to read, a dedicated data structure has better properties for this purpose.
 		</p>
 		<p>If we use a new dedicated data structure, now the problem is what do we name them?
-			They are relatively specific to the function that they are associated with, so one could for example use the pattern &lt;function_name&gt;_result (similar to what happens with std::from_chars), example "mul_wide_result".<br/>
+			They are relatively specific to the function that they are associated with, so one could for example use the pattern &lt;function_name&gt;_result (similar to what happens with std::from_chars), example "widening_mul_result".<br/>
 			In addition, the type would need to be templated since the function parameters and consequentially the types of the expected output is also templated.
 			This would require defining at least 4 new templated data types, in most cases supporting 10 different integer types, for a potential of 40 new data structures in practice.
 			This isn't a big deal, compilers can certainly handle that quite easily, and the effort for implementing those is proportional to the effort of implementing the new features, but can we do better?
@@ -529,38 +531,38 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			needing only a side note specifying which value means what (and only for a couple of cases).<br/>
 			Performing std::get<0>(func(...)) would provide the same result as the trivial operators (+, -, *, /) would in most platforms,
 			performing std::get<1>(func(...)); would recover information lost by the trivial operators (+, -, *, /)
-				(i.e. carry/borrow bits, high bits in mul_wide, and the remainder on division).<br/>
-			While not perfect, it is quite suitable for the intended purpose, without visible undesirable features except in one specific case "mul_wide".</p>
-		<p>"mul_wide" has to output high and low bits of the resulting multiplication, in platforms that don't have direct hardware support for a specific type but has a wider integer type
-			an implementer may want to implement "mul_wide" by internally casting the inputs to the wider integer, doing a trivial multiplication and then splitting the high and low bits.
+				(i.e. carry/borrow bits, high bits in widening_mul, and the remainder on division).<br/>
+			While not perfect, it is quite suitable for the intended purpose, without visible undesirable features except in one specific case "widening_mul".</p>
+		<p>"widening_mul" has to output high and low bits of the resulting multiplication, in platforms that don't have direct hardware support for a specific type but has a wider integer type
+			an implementer may want to implement "widening_mul" by internally casting the inputs to the wider integer, doing a trivial multiplication and then splitting the high and low bits.
 			By defining that the low bits are to be return on the first element of the tuple, on little-endian machines it just so happens that the memory layout matches the fact that low bytes of an integer come first allowing a compiler to optimize away any bit manipulation in all cases.
 			But we need to acknowledge that big-endian machines also exist, and it just so happens that the expected byte order is reversed, a compiler can still optimize away bit manipulation depending on what happens on assignment,
-			but it might not be possible do so in all circumstances if the value needs to be passed to an unknow context (like taking an address). Using a new specialized data structure "mul_wide_result" that only defines that "result_high" and "result_low" must be members of it without specifying
+			but it might not be possible do so in all circumstances if the value needs to be passed to an unknow context (like taking an address). Using a new specialized data structure "widening_mul_result" that only defines that "result_high" and "result_low" must be members of it without specifying
 			the order in which they should appear, an implementer would be free to swap the values around to pick the best memory layout for their specific platform.<br/>
-			In my opinion, considering that big-endian devices are now a days relatively rare, and considering the rare situations where a compiler couldn't just optimize the whole thing anyway, that most use cases are for a widest integer type available on that platform where this trick couldn't be used anyway, and it's just "mul_wide" that has this problem,
+			In my opinion, considering that big-endian devices are now a days relatively rare, and considering the rare situations where a compiler couldn't just optimize the whole thing anyway, that most use cases are for a widest integer type available on that platform where this trick couldn't be used anyway, and it's just "widening_mul" that has this problem,
 			this shouldn't justify using new data type over a std::tuple.</p>
-		<p>However, feedback from the initial draft led to the conclusion that tuples are not popular among developers given the ambiguity of the placement of outputs of mul_wide and dive_wide in anonymous structures.
+		<p>However, feedback from the initial draft led to the conclusion that tuples are not popular among developers given the ambiguity of the placement of outputs of widening_mul and dive_wide in anonymous structures.
 			And thus, named structures were selected for the sake of improved clarity.
 		</p>
 
 		<h3 class="header" id="Design.class">6.4. Extra classifications</h3>
-		<p>With the exception of div_wide, all functions have "well" defined behavior, and they can all be made <b>constexpr</b> and <b>noexcept</b>.
+		<p>With the exception of narrowing_div, all functions have "well" defined behavior, and they can all be made <b>constexpr</b> and <b>noexcept</b>.
 			There's a clear benefit to computing things at compile time if possible, and if one can optimize assuming that they don't throw exceptions, then why shouldn't they be?<br/>
 		</p>
 
 		<h2 class="header" id="Name">7. Naming</h2>
-		<p>Names like <b>add</b>, <b>sub</b>, <b>mul</b>, <b>div</b>, have long standing unwritten conventions as to what they should mean, its usage is unambiguous, there is precedent for it,
-		and they are all exactly 3 characters long which makes them look really nice when aligning them together. So I propose to keep that.
-		The rest of the text in the function name are mostly plain English and are well know in regards to their meaning.<br/>
-		Some may object to the naming of sub_borrow as opposed to sub_carry, as this may be seen as "an endorsement of intel's naming convention".
-		My counterargument to this objection is "intel is not wrong", in mathematical lingo "borrow" is used for subtraction not "carry",
-		and it makes sense from a clarity perspective in terms of what the flag means. When the flag is 1 "carry" means the flag "adds" to the value, "borrow" means the flag "subtracts", hence add_carry and sub_borrow.
-		Not sub_carry (i.e. flag adds 1 after subtracting), and not add_borrow (i.e. flag subtracts 1 after adding).<br/>
+		<p>Names like <b>add</b>, <b>sub</b>, <b>mul</b>, <b>div</b>, have long standing unwritten conventions as to what they should mean, its usage is unambiguous. So I propose to keep that.
+		The rest of the text in the function name are mostly plain English.<br/>
+		Until [<a href="#ref.P4052R0">P4052R0</a>] the names add_carry, sub_borrow, mul_wide, div_wide had been proposed, but after the adoption of [<a href="#ref.P4052R0">P4052R0</a>] and subsequent release of the C++26 standard, the reasons for this old naming scheme became irrelevant.<br/>
+		The most relevant consideration at the moment is that the naming scheme remains consistent to that which has been previously adopted by the C++ standard.
+		[<a href="#ref.P4052R0">P4052R0</a>] having thus taken inspiration from <a href="#ref.rust64">Rust</a>, carrying_add, borrowing_sub, and widening_mul were selected.
+		This leaves the wide division operation, which has no Rust equivalent, but given that it performs the complementary operation to widening_mul, narrowing_div seems a fitting name.
+		<br/>
 		</p>
 		<p>
 			The name of the accompanying data structures used for return types will use the name of the function with the post-fix "_result", this is practice that is common in the standard (for example std::from_chars_result).
-			One noticeable exception to this rule is the return structure for div_wide which drops the "_wide", i.e. div_result.<br/>
-			The reasoning for this is two fold, first because the name is available, secondly because the returning output of div_wide and potentially extended future version of std::div are exactly the same,
+			One noticeable exception to this rule is the return structure for narrowing_div which drops the "narrowing_" prefix, i.e. div_result.<br/>
+			The reasoning for this is two fold, first because the name is available, secondly because the returning output of narrowing_div and potentially extended future version of std::div are exactly the same,
 			and the same type can be used for both without the need to proliferate unnecessary identical structures.
 		</p>
 
@@ -568,28 +570,28 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 		<p><b>Q: Why is safe overflow excluded?</b><br/>
 			<b>A:</b> The [<a href="#ref.analysis">analysis paper</a>]
 		and [<a href="#ref.P3018R0">P3018R0</a>] 
-		suggests the addition of "add_overflow", "sub_overflow", "mul_overflow", and "div_overflow", and yet they are not part of this paper.<br/>
+		suggests the addition of "overflowing_add", "overflowing_sub", "overflowing_mul", and "overflowing_div", and yet they are not part of this paper.<br/>
 		This is intentional, after better analysis of the problem, I have concluded that perhaps it is better not to. And here is why:</p>
-		<p>add_overflow/sub_overflow<br/>
-			add_overflow and sub_overflow, are essentially the same as add_carry/sub_borrow except that the carry/borrow bit
-			are fixed to 0. And indeed, specialized CPU instructions exist to perform this behavior which are different from those required by a generic add_carry/sub_borrow (when the carry/borrow bit aren't known at compile time).<br />
+		<p>overflowing_add/overflowing_sub<br/>
+			overflowing_add and overflowing_sub, are essentially the same as carrying_add/borrowing_sub except that the carry/borrow bit
+			are fixed to 0. And indeed, specialized CPU instructions exist to perform this behavior which are different from those required by a generic carrying_add/borrowing_sub (when the carry/borrow bit aren't known at compile time).<br />
 			However, I feel that this is best solved with a compiler optimization. If the compiler can deduce at compile time that when
-			add_carry/sub_borrow is used the carry/borrow bit is a constant equal to 0, it is free to decide to use the cheapest instruction, i.e. to degenerate add_carry/sub_borrow to instructions that
-			add_overflow/sub_overflow would have emitted without these functions being explicitly provided.
+			carrying_add/borrowing_sub is used the carry/borrow bit is a constant equal to 0, it is free to decide to use the cheapest instruction, i.e. to degenerate carrying_add/borrowing_sub to instructions that
+			overflowing_add/overflowing_sub would have emitted without these functions being explicitly provided.
 		</p>
-		<p>div_overflow<br/>
+		<p>overflowing_div<br/>
 			Unsigned integer division never overflows, and signed integer division only overflows in the degenerate case INT_MAX/-1 which is trivial to check.<br/>
 			One may also note that division by 0 is still undefined, and a user is expected to protect against this case before trying to divide.<br/>
 			In addition, there's no CPU instruction that would give the right result in the degenerate case; a library implementer would always need to explicitly check for the degenerate case before performing the division.<br/>
 			Given these, a user would be better served by being provided with a <b>is_div_defined</b> to the check themselves and then decide what behavior their application should have.
 		</p>
-		<p>mul_overflow<br/>
+		<p>overflowing_mul<br/>
 			Although CPU instruction support exists in the form of overflow flag on multiplication, and although the behavior makes sense, the use cases are questionable.<br/>
-			One could still implement a sub-optimal "mul_overflow" by using "mul_wide" if need be.
+			One could still implement a sub-optimal "overflowing_mul" by using "widening_mul" if need be.
 			But it is still the odd one out, it is better left for a future proposal if a use case is found.<br/>
 		</p>
 
-		<br/><p><b>Q: Why does div_wide have a large range of undefined behavior instead of outputing 2 quotient words for high and low bits?</b><br/>
+		<br/><p><b>Q: Why does narrowing_div have a large range of undefined behavior instead of outputing 2 quotient words for high and low bits?</b><br/>
 		<b>A:</b> To understand this we need to look at the intended usage of the function. I.e. to perform arithmetic on arbitrarily large integers.
 		While the variant of 2 quotient words would be useful to divide a number 2 words wide, in a succinct fashion, its usefulness simply stops when you want to divide a number that has any other number of words.<br/>
 		For example, how would you divide a number with 3 words? You would have to chain multiple division operations. Starting by dividing the "high words" first and then use its remainder (as high bits) and combine it with the yet unused dividend "low bits" into a subsequent division operation to extract the lower bits of the result.
@@ -600,15 +602,15 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 		So not only is the proposed version closer to how existing hardware works (or otherwise how a more efficient division algorithm would be written), it also allows a user to explicitly express that a "second high quotient bits" are not expected, and thus write much more efficient software than what would otherwise be possible to express.
 		</p>
 
-		<br/><p id="type_confusion"><b>Q: Why does the high_bits and low_bits of the signed mul_wide_result are both signed?
+		<br/><p id="type_confusion"><b>Q: Why does the high_bits and low_bits of the signed widening_mul_result are both signed?
 			Especially considering that on the low_bits there are no signed bits.
 		</b><br/>
-		<b>A:</b> The first step to understand the solution to this problem is to realize that this is not exclusive to mul_wide.
-		Take for example add_carry, when the operands do not cause an overflow, one would simply read the correct signed integer result from `low_bits`. However, if the result would overflow
+		<b>A:</b> The first step to understand the solution to this problem is to realize that this is not exclusive to widening_mul.
+		Take for example carrying_add, when the operands do not cause an overflow, one would simply read the correct signed integer result from `low_bits`. However, if the result would overflow
 		then this is no longer the case, it can't, by definition an overflow means that the value cannot be represented in the available bits, looking at the "sign" bit no longer indicates the correct sign of the actual value.
 		In order to make a correct use of an overflown value, one must treat the resulting object as a bag of bits and only then be able to properly re-interpret the result for what it trully means and act accordingly.
 		For example, if we are only interested in safe-arithmetic then an error handling path can be taken when the overflow bit is set, or if we are using multi-precision we add an extra word to the object's representation.<br/>
-		But couldn't the low_bits of the signed 'mul_wide_result' be unsigned while the high_bits remain signed and thus still accurately represent the result? No. The 'sign bit' is no more represents the sigdness of the number than the other bits represent the "non-signed" part, it's incidental that this works in this way.
+		But couldn't the low_bits of the signed 'widening_mul_result' be unsigned while the high_bits remain signed and thus still accurately represent the result? No. The 'sign bit' is no more represents the sigdness of the number than the other bits represent the "non-signed" part, it's incidental that this works in this way.
 		Take for example -1 which with 8bits is typically represented in binary as 1111'1111 if we remove the sign bit (i.e. 111'1111) this value does not represent an unsigned 1 (which is 127 and not 000'0001).
 		1111'1111 is only -1 as in so far that is +1 away from 0, and it is done so for implementation convenience, in practice 1111'1111 is only -1 because we mapped its representation that way and because it is easier to design hardware this way.
 		You can't just arbitrarily remove bits and expect integers to retain its intrinsic meaning. It's the complete set of bits that give a concrete meaning to the number being represented, and it is not the collection of its parts.
@@ -642,7 +644,7 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			Hence why this feature should be a part of the standard.
 		</p>
 		<h2 class="header" id="wording">10. Wording</h2>
-		<p>Wording is done in reference to [<a href="#ref.draft">N5008</a>].</p>
+		<p>Wording is done in reference to [<a href="#ref.draft">N5046</a>].</p>
 		<p>
 			In subclause 26.9 [numeric.ops.overview], change &lt;numeric&gt; as indicated:<br />
 				<pre class="remove"><s>// 26.10.17, saturation arithmetic</s></pre><br />
@@ -652,21 +654,21 @@ UnsignedBigNum BigNum_divide(UnsignedBigNum const& v1, uint64_t const v2)
 			In subclause 26.9 [numeric.ops.overview], add to header <numeric> as indicated:<br />
 <pre class="no_change">
 template&lt;class T, class U&gt;
-  constexpr T saturate_cast(U x) noexcept;          // freestanding
+  constexpr T saturating_cast(U x) noexcept;          // freestanding
 </pre><br/>
 <pre class="add">
 
 template&lt;class T&gt;
-struct add_carry_result {       // freestanding
+struct carrying_add_result {       // freestanding
 	T low_bits;
 	bool overflow;
 };
 
 template&lt;class T&gt;
-using sub_borrow_result = add_carry_result&lt;T&gt;;
+using borrowing_sub_result = carrying_add_result&lt;T&gt;;
 
 template&lt;class T&gt;
-struct mul_wide_result {       // freestanding
+struct widening_mul_result {       // freestanding
 	T low_bits;
 	T high_bits;
 };
@@ -678,13 +680,13 @@ struct div_result {            // freestanding
 };
 
 template&lt;class T&gt;
-constexpr add_carry_result&lt;T&gt; add_carry(T x, T y, bool carry) noexcept;            //freestanding
+constexpr carrying_add_result&lt;T&gt; carrying_add(T x, T y, bool carry) noexcept;            //freestanding
 template&lt;class T&gt;
-constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;  //freestanding
+constexpr borrowing_sub_result&lt;T&gt; borrowing_sub(T minuend, T subtrahend, bool borrow) noexcept;  //freestanding
 template&lt;class T&gt;
-constexpr mul_wide_result&lt;T&gt; mul_wide(T x, T y) noexcept;                          //freestanding
+constexpr widening_mul_result&lt;T&gt; widening_mul(T x, T y) noexcept;                          //freestanding
 template&lt;class T&gt;
-constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T divisor ) noexcept;     //freestanding
+constexpr div_result&lt;T&gt; narrowing_div(T dividend_high, T dividend_low, T divisor ) noexcept;     //freestanding
 </pre><br/>
 <pre class="no_change">}</pre>
 		</p>
@@ -698,17 +700,17 @@ constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T diviso
 26.10.17.1 Arithmetic typedefs [numerics.overflow.typedefs]
 
 template&lt;class T&gt;
-struct add_carry_result {
+struct carrying_add_result {
 	T low_bits;
 	bool overflow;
 };
 <i>Constraints:</i> T is a signed or unsigned integer type ([basic.fundamental]).
 
 template&lt;class T&gt;
-using sub_borrow_result = add_carry_result;
+using borrowing_sub_result = carrying_add_result;
 
 template&lt;class T&gt;
-struct mul_wide_result {
+struct widening_mul_result {
 	T low_bits;
 	T high_bits;
 };
@@ -724,25 +726,25 @@ struct div_result {
 26.10.17.2 Arithmetic functions [numerics.overflow.func]
 </pre><br />
 <pre class="no_change">
-[Note 1: In the following descriptions, an arithmetic operation is performed as a mathematical operation with infinite range and then it is determined whether the mathematical result fits into the result type. — <i>end note</i>]
+In the following descriptions, an arithmetic operation is performed as a mathematical operation with infinite range and then it is determined whether the mathematical result fits into the result type.
 
 template&lt;class T&gt;
-  constexpr T add_sat(T x, T y) noexcept;
+  constexpr T saturating_add(T x, T y) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: If x + y is representable as a value of type T, x + y; otherwise, either the largest or smallest representable value of type T, whichever is closer to the value of x + y.
 
 template&lt;class T&gt;
-  constexpr T sub_sat(T x, T y) noexcept;
+  constexpr T saturating_sub(T x, T y) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: If x - y is representable as a value of type T, x - y; otherwise, either the largest or smallest representable value of type T, whichever is closer to the value of x - y.
 
 template&lt;class T&gt;
-  constexpr T mul_sat(T x, T y) noexcept;
+  constexpr T saturating_mul(T x, T y) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Returns: If x × y is representable as a value of type T, x × y; otherwise, either the largest or smallest representable value of type T, whichever is closer to the value of x × y.
 
 template&lt;class T&gt;
-  constexpr T div_sat(T x, T y) noexcept;
+  constexpr T saturating_div(T x, T y) noexcept;
 Constraints: T is a signed or unsigned integer type ([basic.fundamental]).
 Preconditions: y != 0 is true.
 Returns: If T is a signed integer type and x == numeric_limits<T>::min() && y == -1 is true, numeric_limits<T>::max(), otherwise, x / y.
@@ -752,22 +754,22 @@ Remarks: A function call expression that violates the precondition in the Precon
 <pre class="add">
 
 template&lt;class T&gt;
-constexpr add_carry_result&lt;T&gt; add_carry(T x, T y, bool carry) noexcept;
+constexpr carrying_add_result&lt;T&gt; carrying_add(T x, T y, bool carry) noexcept;
 <i>Constraints:</i> T is a signed or unsigned integer type ([basic.fundamental]).
-<i>Returns:</i> add_carry_result&lt;T&gt; with the member low_bits set to the result of x + y + (carry ? 1 : 0) truncated to the size of T, the member overflow is set to true if result is not representable as a value of type T and false if otherwise.
+<i>Returns:</i> carrying_add_result&lt;T&gt; with the member low_bits set to the result of x + y + (carry ? 1 : 0) truncated to the size of T, the member overflow is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
-constexpr sub_borrow_result&lt;T&gt; sub_borrow(T minuend, T subtrahend, bool borrow) noexcept;
+constexpr borrowing_sub_result&lt;T&gt; borrowing_sub(T minuend, T subtrahend, bool borrow) noexcept;
 <i>Constraints:</i> T is a signed or unsigned integer type ([basic.fundamental]).
-<i>Returns:</i> sub_borrow_result&lt;T&gt; with the member low_bits set to the result of minuend - subtrahend - (borrow ? 1 : 0) truncated to the size of T, the member overflow is set to true if result is not representable as a value of type T and false if otherwise.
+<i>Returns:</i> borrowing_sub_result&lt;T&gt; with the member low_bits set to the result of minuend - subtrahend - (borrow ? 1 : 0) truncated to the size of T, the member overflow is set to true if result is not representable as a value of type T and false if otherwise.
 
 template&lt;class T&gt;
-constexpr mul_wide_result&lt;T&gt; mul_wide(T x, T y) noexcept;
+constexpr widening_mul_result&lt;T&gt; widening_mul(T x, T y) noexcept;
 <i>Constraints:</i> T is a signed or unsigned integer type ([basic.fundamental]).
-<i>Returns:</i> mul_wide_result&lt;T&gt; with the result of x × y, the member low_bits is set to the least significant bits that can fit in a value of type T and the member high_bits is set to the most significant bits.
+<i>Returns:</i> widening_mul_result&lt;T&gt; with the result of x × y, the member low_bits is set to the least significant bits that can fit in a value of type T and the member high_bits is set to the most significant bits.
 
 template&lt;class T&gt;
-constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T divisor) noexcept;
+constexpr div_result&lt;T&gt; narrowing_div(T dividend_high, T dividend_low, T divisor) noexcept;
 <i>Constraints:</i> T is an unsigned integer type ([basic.fundamental]).
 <i>Returns:</i> div_result with the member quotient set to the result of (dividend / divisor) where dividend is a number twice the width of T who's high bits are set to dividend_high and low bits are set to dividend_low; and the member remainder set to the remainder of the same division.
 <i>Preconditions:</i> (dividend_high &lt; divisor) evaluates to true.
@@ -777,7 +779,7 @@ constexpr div_result&lt;T&gt; div_wide(T dividend_high, T dividend_low, T diviso
 <pre class="remove"><s>26.10.17.2 Casting[numeric.sat.cast]</s></pre><br />
 <pre class="add">26.10.17.3 Casting[numeric.overflow.cast]</pre><br />
 <pre class="no_change">template&lt;class R, class T&gt;
-  constexpr R saturate_cast(T x) noexcept;
+  constexpr R saturating_cast(T x) noexcept;
 Constraints: R and T are signed or unsigned integer types ([basic.fundamental]).
 Returns: If x is representable as a value of type R, x; otherwise, either the largest or smallest representable value of type R, whichever is closer to the value of x.
 </pre>
@@ -794,6 +796,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 			<ol>
 				<li id="ref.P0543R3"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p0543r3.html" target="_blank">ISO/IEC JTC1 SC22 WG21 P0543R3</a>: Saturation arithmetic by Jens Maurer</li>
 				<li id="ref.P3018R0"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p3018r0.pdf" target="_blank">ISO/IEC JTC1 SC22 WG21 P3018R0</a>: Low-Level Integer Arithmetic by Andreas Weis</li>
+				<li id="ref.P4052R0"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/p4052r0.html" target="_blank">ISO/IEC JTC1 SC22 WG21 P4052R0</a>: Renaming saturation arithmetic functions by Jan Schultke and Corentin Jabot</li>
 				<li id="ref.analysis"><a href="https://kaotic.software/cpp_papers/overflow_arithmetic.html" target="_blank">Unified integer overflow arithmetic</a> analysis paper</li>
 				<li id="ref.intel"><a href="https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html" target="_blank">Intel® 64 and IA-32 Architectures Software Developer’s Manual</a> Vol.2</li>
 				<li id="ref.arm"><a href="https://developer.arm.com/documentation/ddi0487/latest" target="_blank">Arm® Architecture Reference Manual</a></li>
@@ -801,7 +804,8 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 				<li id="ref.clang"><a href="https://clang.llvm.org/docs/LanguageExtensions.html#multiprecision-arithmetic-builtins" target="_blank">Clang builtins</a></li>
 				<li id="ref.codextract"><a href="https://github.com/tmiguelf/utilities/blob/8f486a19a41466b7324efd3e99a4557bf846f828/CoreLib/src/string/fp_charconv_round.cpp#L539-L561" target="_blank">Code extract</a> on floating point char conversion</li>
 				<li id="ref.library"><a href="https://github.com/tmiguelf/std_prop_overflow" target="_blank">https://github.com/tmiguelf/std_prop_overflow</a> - Reference implementation</li>
-				<li id="ref.draft"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/n5008.pdf" target="_blank">N5008</a> - Working Draft Programming Languages — C++</li>
+				<li id="ref.draft"><a href="https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/n5046.pdf" target="_blank">N5046</a> - Working Draft Programming Languages — C++</li>
+				<li id="ref.rust64"><a href="https://doc.rust-lang.org/std/primitive.u64.html" target="_blank">u64</a>/<a href="https://doc.rust-lang.org/std/primitive.i64.html" target="_blank">i64</a> - Rust doc</li>				
 			</ol>
 		</p>
 
@@ -819,7 +823,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 			<li>When chaining multiple operations where the output of one happens to occur precisely in a register where it can serve as the input of the next operation, surperfluous move instructions can be surpressed.
 				When generating fully optimized code, the compiler can re-order instructions (as long as it doesn't violate a dependency chain) in order to minimize surperfluous moves or flag sets.</li>
 		</ul>
-		<h4>add_carry</h4>
+		<h4>carrying_add</h4>
 		<ul>
 			<li>The addend operands A and B can be freely swapped (take advantage of the commutative property).
 				This can be useful when chaining multiple operations where one (or both) input is in a register that can be used in the addition but not in the trivial order.</li>
@@ -851,7 +855,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 			</li>
 			<li>If the output overflow value produces no side effects (unread), the carry/overflow flags may not be read.</li>
 		</ul>
-		<h4>sub_borrow</h4>
+		<h4>borrowing_sub</h4>
 		<ul>
 			<li>If the input borrow is known to have the value 0 at compile time, the compiler can chose an alternative subtract instruction (if it exists) that does not take a borrow as an input.</li>
 			<li>If the subtrahend is known to have the value 0 at compile time, the compiler can choose an alternative conditional decrement instruction.</li>
@@ -879,7 +883,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 			</li>
 			<li>If the output overflow value produces no side effects (unread), the carry/overflow flag may not be read.</li>
 		</ul>
-		<h4>mul_wide</h4>
+		<h4>widening_mul</h4>
 		<ul>
 			<li>The operands A and B can be freely swapped (take advantage of the commutative property).
 				This can be useful when chaining multiple operations where one (or both) input is in a register that can be used in the multiplication but not in the trivial order.</li>
@@ -900,7 +904,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 			<li>If the resulting high_bits are unused, cheaper multiplication instruction may be used where high_bits are unretrieved.</li>
 			<li>If the resulting low_bits are unused, cheaper instruction can be used to only compute the high_bits of the multiplication.</li>
 		</ul>
-		<h4>div_wide</h4>
+		<h4>narrowing_div</h4>
 		<p>Note: compilation should always fail in a constexpr context if inputs are outside of the defined domain.</p>
 		<ul>
 			<li>Runtime behavior when inputs are in the undefined domain need not be consistent in any way, they may even display different behavior in seemingly identical circumstances.
@@ -916,7 +920,7 @@ Returns: If x is representable as a value of type R, x; otherwise, either the la
 					<li>If input operands are unsigned and the value is a power of 2, it can be replaced by a right shift instruction (provided that the ejected bits are recovered to form the remainder).
 					<li>If otherwise, traditional known constant division optimization maybe used.</li>
 				</ul>
-				Note: If div_wide is unguarded and compiler knows at compile time that inputs to div_wide are in the undefined domain, it is strongly advised that compiler issues a warning.
+				Note: If narrowing_div is unguarded and compiler knows at compile time that inputs to narrowing_div are in the undefined domain, it is strongly advised that compiler issues a warning.
 			</li>
 		</ul>
 		<p>Note: this list is not exhaustive, and many more optimization opportunities may exist depending on the platform.</p>
@@ -932,20 +936,20 @@ constexpr div_result&lt;T&gt; div(T dividend, T divisor) noexcept;
 			Performs a fused division with remainder. <br />
 			std::div already exists in the standard. This paper only notes insufficient design and proposes a signature change in future development.
 		</p>
-		<h3 class="header" id="future.is_div_wide_defined">B.2. is_div_wide_defined</h3>
+		<h3 class="header" id="future.is_narrowing_div_defined">B.2. is_narrowing_div_defined</h3>
 		<h4>Suggested signature</h4>
 <pre>
 template&lt;class T&gt;
-constexpr bool is_div_wide_defined(T dividend_high, T dividend_low, T divisor) noexcept;
+constexpr bool is_narrowing_div_defined(T dividend_high, T dividend_low, T divisor) noexcept;
 </pre>
 		<h4>Description:</h4>
-		<p>Checks if std::div_wide is defined for the input arguments<br/>
+		<p>Checks if std::narrowing_div is defined for the input arguments<br/>
 			i.e. Checks that the divisor is not 0, and that result would not overflow
 		</p>
 		<h4>Possible implementation:</h4>
 <pre>
 template&lt;typename T&gt;
-[[nodiscard]] constexpr bool is_div_wide_defined(T const hi_dividend, [[maybe_unused]] T const low_dividend, T const divisor) noexcept
+[[nodiscard]] constexpr bool is_narrowing_div_defined(T const hi_dividend, [[maybe_unused]] T const low_dividend, T const divisor) noexcept
 {
 	if constexpr(std::is_signed_v&lt;T&gt;)
 	{

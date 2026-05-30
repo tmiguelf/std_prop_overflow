@@ -184,7 +184,7 @@ constexpr borrowing_sub_result&lt;T&gt; borrowing_sub(T minuend, T subtrahend, b
 		</table>
 		<h4>Non-portable precedent</h4>
 		<table class="matrix">
-			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th></tr>
+			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th> <th>Rust</th></tr>
 			<tr>
 				<td>__builtin_subcb, __builtin_subcs,<br/>
 					__builtin_subc, __builtin_subcl,<br/>
@@ -194,6 +194,7 @@ constexpr borrowing_sub_result&lt;T&gt; borrowing_sub(T minuend, T subtrahend, b
 				<td>_subborrow_u8, _subborrow_u16,<br/>
 					_subborrow_u32, _subborrow_u64
 				</td>
+				<td>borrowing_sub</td>
 			</tr>
 		</table>
 		<h4>Description:</h4>
@@ -227,13 +228,15 @@ constexpr widening_mul_result&lt;T&gt; widening_mul(T, T) noexcept;
 		</table>
 		<h4>Non-portable precedent</h4>
 		<table class="matrix">
-			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th></tr>
+			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th> <th>Rust</th> </tr>
 			<tr><td>-</td>	
 				<td>
 					_mul128, _umul128,<br/>
 					__emul, __emulu,<br/>
 					__mulh, __umulh</td>
-				<td>mulx_u32, mulx_u64</td></tr>
+				<td>mulx_u32, mulx_u64</td>
+				<td>widening_mul</td>
+			</tr>
 		</table>
 		<h4>Description:</h4>
 		<p>Multiplication with twice the width of inputs.
@@ -264,12 +267,12 @@ constexpr div_result&lt;T&gt; narrowing_div(T dividend_high, T dividend_low, T d
 		</table>
 		<h4>Non-portable precedent</h4>
 		<table class="matrix">
-			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th></tr>
+			<tr><th>clang</th>	<th>msvc</th> <th>intel intrinsic</th> <th>Rust</th></tr>
 			<tr><td>-</td>	
 				<td>
 					_udiv64, _udiv128,<br/>
 					_div64, _div128,<br/>
-				</td> <td>-</td></tr>
+				</td> <td>-</td> <td>-</td></tr>
 		</table>
 		<h4>Description:</h4>
 		<p>The reciprocal operation to widening_mul

@@ -17,12 +17,16 @@
 
 #endif
 
-#if (defined(__GNUG__) || defined(__GNUC__))
+#if (defined(__GNUG__) || defined(__GNUC__) || defined(__clang__))
 #	define FORCE_INLINE __attribute__((always_inline)) inline
 #elif (defined(_MSC_VER))
 #	define FORCE_INLINE __forceinline
 #else
 #	define FORCE_INLINE inline
+#endif
+
+#if (defined (__GNUG__) || defined(__GNUC__) || defined(__clang__))
+#define _HAS_ASM
 #endif
 
 //__readeflags
@@ -111,7 +115,7 @@ namespace std
 		if constexpr (std::is_unsigned_v<T>)
 		{
 #ifdef __PORTABLE_ARCH_AMD64__
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 			if(!std::is_constant_evaluated())
 			{
 				uint16_t const aux = carry;
@@ -182,7 +186,7 @@ namespace std
 		else if constexpr ( std::is_signed_v<T> )
 		{
 #if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 			if(!std::is_constant_evaluated())
 			{
 				uint16_t const aux = carry;
@@ -224,7 +228,7 @@ namespace std
 		if constexpr (std::is_unsigned_v<T>)
 		{
 #if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 			if(!std::is_constant_evaluated())
 			{
 				uint16_t const aux = borrow;
@@ -294,7 +298,7 @@ namespace std
 		else if constexpr ( std::is_signed_v<T> )
 		{
 #if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 			if(!std::is_constant_evaluated())
 			{
 				uint16_t const aux = borrow;
@@ -337,7 +341,7 @@ namespace std
 		if constexpr ( std::is_unsigned_v<T> )
 		{
 #if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 			if(!std::is_constant_evaluated() && sizeof(T) != sizeof(uint8_t))
 			{
 				int_t hi_res;
@@ -395,7 +399,7 @@ namespace std
 		else if constexpr ( std::is_signed_v<T> )
 		{
 #if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 			if(!std::is_constant_evaluated() && sizeof(T) != sizeof(int8_t))
 			{
 				int_t hi_res;
@@ -476,7 +480,7 @@ namespace std
 		using int_t = __OVERFLOW__PRIVATE__::int_clobber_t<T>;
 
 #if defined(__PORTABLE_ARCH_AMD64__)
-#	if ( defined (__GNUG__) || defined(__GNUC__) )
+#	if defined (_HAS_ASM)
 		if(!std::is_constant_evaluated() && (sizeof(T) != sizeof(uint8_t)))
 		{
 			__asm__

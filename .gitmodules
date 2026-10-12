@@ -1,7 +1,10 @@
+[submodule "reference/submodules/quick_cmake"]
+	path = reference/submodules/quick_cmake
+	url = ../quick_cmake.git
+	fetchRecurseSubmodules = false
+	ignore = dirty
 [submodule "reference/submodules/googletest"]
 	path = reference/submodules/googletest
 	url = ../googletest.git
+	fetchRecurseSubmodules = false
 	ignore = dirty
-[submodule "reference/submodules/quick_cmake"]
-	path = reference/submodules/quick_cmake
-	url = https://github.com/tmiguelf/quick_cmake.git
